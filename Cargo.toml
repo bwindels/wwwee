@@ -1,0 +1,8 @@
+[package]
+name = "miohttp"
+version = "0.1.0"
+authors = ["Bruno Windels <bruno.windels@gmail.com>"]
+
+[dependencies]
+mio = "0.6"
+#arrayvec = "0.4.2"
