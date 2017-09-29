@@ -1,7 +1,10 @@
-The goal is to write a fast, robust http server that doesn't allocate any dynamic memory.
+The goal is to write a fast, robust http server that uses very few resources.
 
+The server won't allocate any dynamic memory. Everything is on the stack.
 We'll support a fixed number of connections, with fixed sized buffers for each connection.
 We'll handle all connections on one thread, using mio for async I/O
+
+The server is to be used for running a home server on very low-end hardware, so a low amount of concurrent connections shouldn't be a problem.
 
 # Limitations
 
@@ -16,7 +19,7 @@ If this fails, we respond with `413 Payload Too Large`.
 
 We'll first read from the socket until we find `\r\n\r\n`, indicating the end of the headers.
 We keep filling the receive buffer until we find this or until it's full (in which case we respond with `413`).
-Once we've found the end of the headers, we parse them.
+Once we've found the end of the headers, we parse them assuming utf8. If this fails, we respond with `400 Bad Request`.
 
 # Reading body
 
@@ -26,8 +29,16 @@ Once we have the body, we pass it to the application.
 
 # Responding
 
-The application can send a response through filling it's own buffer and writing that, using sendfile, ...
+The application can send a response through filling it's own buffer and passing that to the responder, that will write a bit every time the socket becomes writeable, or using sendfile.
 
 # JSON
 
 We'll also write a stack based JSON parser, that we can use to parse the body with once it's read in
+
+# Too many connections
+
+We'll have a preallocated pool of connections. If we run out, we respond with `429 Too Many Requests`.
+
+# Open problems
+- How to deal with URL encoding? Decode in place? 
+- How to pass response buffer from HttpHandler to Handler?
