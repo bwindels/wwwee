@@ -40,5 +40,10 @@ We'll also write a stack based JSON parser, that we can use to parse the body wi
 We'll have a preallocated pool of connections. If we run out, we respond with `429 Too Many Requests`.
 
 # Open problems
-- How to deal with URL encoding? Decode in place? 
+- How to deal with URL encoding? Decode in place?
+	- have separate fixed buffer to decode the url in 
 - How to pass response buffer from HttpHandler to Handler?
+
+# Implementation
+
+- use `uhttp_media_type` to parse content-type/accept headers
