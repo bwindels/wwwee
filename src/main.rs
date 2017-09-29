@@ -1,5 +1,7 @@
 #![allow(dead_code)]
-
+mod error;
+mod str;
+mod headers;
 extern crate mio;
 //extern crate arrayvec;
 use mio::*;
@@ -9,8 +11,7 @@ use std::io::{Read, Write};
 struct Connection {
   socket: TcpStream,
   token: Token,
-  read_buffer: [u8; 1024],
-  write_buffer: [u8; 1024],
+  read_buffer: [u8; 4096],
   readiness: Ready,
   ready_to_write: bool,
   read_request: bool
@@ -22,8 +23,7 @@ impl Connection {
       socket,
       token,
       readiness: Ready::readable() | Ready::writable(),
-      read_buffer: [0; 1024],
-      write_buffer: [0; 1024],
+      read_buffer: [0; 4096],
       ready_to_write: false,
       read_request: false
     }
