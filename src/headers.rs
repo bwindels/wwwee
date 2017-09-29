@@ -55,35 +55,17 @@ impl<'a> Header<'a> {
   }
 }
 
-pub fn parse_header<'a>(line: &'a mut str) -> ParseResult<Header<'a>> {
-  if let Some(idx) = line.find(":") {
-    let (name, value) = line.split_at_mut(idx);
-    name.make_ascii_uppercase();
-    for name_word in str_split_mut(name, "-") {
-      name_word[0..1].make_ascii_uppercase();
-      name_word[1..].make_ascii_lowercase();
-    }
-    let name = name.trim();
-    let value = &value[1..];  //cut : off
-    let value = value.trim();
-    Ok(Header{name, value})
-  }
-  else {
-    Err(ParseError::InvalidHeader)
-  }
-}
-
 pub struct Headers<'a> {
   buffer: &'a mut str
 }
 
-pub struct HeadersEndParser {
+pub struct HeaderBodySplitter {
   find_offset: usize
 }
 
-impl HeadersEndParser {
-  pub fn new() -> HeadersEndParser {
-    HeadersEndParser{find_offset: 1}
+impl HeaderBodySplitter {
+  pub fn new() -> HeaderBodySplitter {
+    HeaderBodySplitter{find_offset: 1}
   }
 
   pub fn update<'a>(&mut self, buffer: &'a mut [u8]) -> Option<(&'a mut [u8], &'a mut [u8])> {
@@ -139,13 +121,13 @@ mod tests {
   }
 
   #[test]
-  fn test_header_end_parser() {
+  fn test_header_body_splitter() {
     let mut st = "foobar\r\nhello\r\n\r\nhaha".to_string();
     let mut s = unsafe { st.as_bytes_mut() };
-    let mut parser = super::HeadersEndParser::new();
-    assert_eq!(parser.update(&mut s[0..13]), None);
-    assert_eq!(parser.update(&mut s[0..16]), None);
-    match parser.update(&mut s) {
+    let mut splitter = super::HeaderBodySplitter::new();
+    assert_eq!(splitter.update(&mut s[0..13]), None);
+    assert_eq!(splitter.update(&mut s[0..16]), None);
+    match splitter.update(&mut s) {
       Some((headers, body)) => {
         assert_eq!(headers, b"foobar\r\nhello");
         assert_eq!(body, b"haha");
