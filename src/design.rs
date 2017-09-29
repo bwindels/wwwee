@@ -38,6 +38,6 @@ trait Handler {
 }
 
 trait HttpHandler<T> {
-  fn read_headers(&mut self, http_version: &str, method: &str, uri: &str, headers: HeaderIterator) -> Option<Response>;
+  fn read_headers(&mut self, version: &str, method: &str, uri: &str, headers: HeaderIterator) -> Option<Response>;
   fn read_body(&mut self, body: T) -> Response;
 }
