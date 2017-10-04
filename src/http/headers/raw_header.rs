@@ -1,4 +1,5 @@
-use error::{ParseResult, ParseError};
+use std::ascii::AsciiExt;
+use http::{RequestResult, RequestError};
 use str::str_split_mut;
 
 pub struct RawHeader<'a> {
@@ -7,7 +8,7 @@ pub struct RawHeader<'a> {
 }
 
 impl<'a> RawHeader<'a> {
-  pub fn parse(line: &'a mut str) -> ParseResult<RawHeader<'a>> {
+  pub fn parse(line: &'a mut str) -> RequestResult<RawHeader<'a>> {
     if let Some(idx) = line.find(":") {
       let (name, value) = line.split_at_mut(idx);
       name.make_ascii_uppercase();
@@ -16,12 +17,12 @@ impl<'a> RawHeader<'a> {
         name_word[1..].make_ascii_lowercase();
       }
       let name = name.trim();
-      let value = &value[1..];  //cut : off
+      let value = &value[1..];  //cut ':' off
       let value = value.trim();
       Ok(RawHeader{name, value})
     }
     else {
-      Err(ParseError::InvalidHeader)
+      Err(RequestError::InvalidHeader)
     }
   }
 }

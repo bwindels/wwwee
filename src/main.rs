@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-mod error;
 mod str;
 mod connection;
 mod server;
@@ -10,6 +9,7 @@ extern crate mio;
 
 fn main() {
   let addr = "127.0.0.1:4000".parse().unwrap();
-  let server = http::Server::<app::HelloWorld>::new(addr).unwrap();
+  let handler_creator = || http::ConnectionHandler::new(app::HelloWorld::new());
+  let mut server = http::Server::new(addr, handler_creator).unwrap();
   server.start().unwrap();
 }

@@ -1,22 +1,23 @@
 use super::{MimeType, Authorization, ContentRange, RawHeader};
-use error::{ParseResult, ParseError};
+use http::{RequestResult, RequestError};
+use std::str::FromStr;
 
 pub enum Header<'a> {
   Host(&'a str),
   ContentLength(u64),
-  ContentType(MimeType),
+  ContentType(MimeType<'a>),
   Authorization(Authorization<'a>),
   Referer(&'a str),
-  Range(ContentRange),
+  Range(ContentRange<'a>),
   Other(RawHeader<'a>)
 }
 
-fn parse_u64(num_str: &str) -> ParseResult<u64> {
-  Err(ParseError::InvalidHeader)
+fn parse_u64(num_str: &str) -> RequestResult<u64> {
+  u64::from_str(num_str).map_err(|_| RequestError::InvalidHeader)
 }
 
 impl<'a> Header<'a> {
-  fn from_raw(raw_header: RawHeader<'a>) -> ParseResult<Header<'a>> {
+  pub fn from_raw(raw_header: RawHeader<'a>) -> RequestResult<Header<'a>> {
     let value = raw_header.value;
     let header = match raw_header.name {
       "Host" => Header::Host(value),

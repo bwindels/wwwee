@@ -1,13 +1,14 @@
 use str::str_split_mut;
-use error::{ParseResult, ParseError};
+use http::{RequestResult, RequestError};
+use std::ascii::AsciiExt;
 
 pub struct HttpVersion {
   
 }
 
 impl HttpVersion {
-  fn parse(version: &str) -> ParseResult<HttpVersion> {
-    Err(ParseError::InvalidHeader)
+  fn parse(version: &str) -> RequestResult<HttpVersion> {
+    Err(RequestError::InvalidHeader)
   }
 }
 
@@ -18,7 +19,7 @@ pub struct RequestLine<'a> {
 }
 
 impl<'a> RequestLine<'a> {
-  pub fn parse(line: &'a mut str) -> ParseResult<RequestLine<'a>> {
+  pub fn parse(line: &'a mut str) -> RequestResult<RequestLine<'a>> {
     let mut words = str_split_mut(line, " ").filter(|s| s.len() != 0);
     let method = words.next();
     let uri = words.next();
@@ -34,7 +35,7 @@ impl<'a> RequestLine<'a> {
         });
       }
     }
-    Err(ParseError::InvalidRequestLine)
+    Err(RequestError::InvalidRequestLine)
   }
 }
 

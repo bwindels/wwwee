@@ -1,3 +1,5 @@
+use std::cmp;
+
 pub struct HeaderBodySplitter {
   find_offset: usize
 }
@@ -7,7 +9,7 @@ impl HeaderBodySplitter {
     HeaderBodySplitter{find_offset: 1}
   }
 
-  pub fn update<'a>(&mut self, buffer: &'a mut [u8]) -> Option<(&'a mut [u8], &'a mut [u8])> {
+  pub fn try_split<'a>(&mut self, buffer: &'a mut [u8]) -> Option<(&'a mut [u8], &'a mut [u8])> {
     const HEADER_END: &'static [u8] = b"\r\n\r\n";
     let offset = cmp::max(HEADER_END.len(), self.find_offset + 1) - HEADER_END.len();
     //update the offset where to look from next update

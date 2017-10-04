@@ -1,5 +1,5 @@
 use super::Header;
-use error::ParseResult;
+use http::RequestResult;
 
 
 pub struct HeaderIterator<'a> {
@@ -7,7 +7,7 @@ pub struct HeaderIterator<'a> {
 }
 
 impl<'a> Iterator for HeaderIterator<'a> {
-  type Item = ParseResult<Header<'a>>;
+  type Item = RequestResult<Header<'a>>;
 
   fn next(&mut self) -> Option<Self::Item> {
     None
