@@ -33,17 +33,22 @@ impl<T: RequestHandler> ::connection::ConnectionHandler for ConnectionHandler<T>
   fn bytes_available(&mut self, buffer: &mut [u8], socket: &mut TcpStream) -> usize {
     if let Some((header_buf, _)) = self.header_body_splitter.try_split(buffer) {
       let mut response = if let Ok(req) = Request::parse(header_buf) {
-        let mut resp = BufferResponse::new();
-        resp.write_head(200, "OK");
-        resp.write_header("Content-Type", "text/plain");
-        resp.write_body_str(req.uri());
-        resp
+        if let Some(response) = self.handler.read_headers(&req) {
+          response
+        }
+        else {
+          let mut resp = BufferResponse::new(500, "Internal Server Error");
+          resp.write_header("Content-Type", "text/plain");
+          resp.finish_head();
+          write!(resp, "No response from handler").unwrap();
+          resp
+        }
       }
       else {
-        let mut resp = BufferResponse::new();
-        resp.write_head(400, "Bad request");
+        let mut resp = BufferResponse::bad_request();
         resp.write_header("Content-Type", "text/plain");
-        resp.write_body_str("Error while parsing request");
+        resp.finish_head();
+        write!(resp, "Error while parsing request").unwrap();
         resp
       };
       let response_buf = response.as_slice();

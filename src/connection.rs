@@ -36,7 +36,7 @@ impl<T: ConnectionHandler> Connection<T> {
       Ready::readable() | Ready::writable(), PollOpt::edge())
   }
 
-  pub fn handle_event(&mut self, event: &Event, poll: &Poll) -> bool {
+  pub fn handle_event(&mut self, event: &Event, _: &Poll) -> bool {
     if event.readiness().is_readable() {
       let bytes_read = {
         let remaining_buf = &mut self.read_buffer[self.bytes_read ..];
