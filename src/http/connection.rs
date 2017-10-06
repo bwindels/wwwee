@@ -1,14 +1,15 @@
 use super::{
   HeaderBodySplitter,
   Request,
-  BufferResponse, Buffer
+  BufferResponse, Buffer,
+  FinishedBufferResponse
 };
 use mio::net::TcpStream;
 use std::io::Write;
 
 pub trait RequestHandler {
-  fn read_headers(&mut self, request: &Request) -> Option<BufferResponse>;
-  fn read_body(&mut self, body: &mut [u8]) -> Option<BufferResponse>;
+  fn read_headers(&mut self, request: &Request) -> Option<FinishedBufferResponse>;
+  fn read_body(&mut self, body: &mut [u8]) -> Option<FinishedBufferResponse>;
 }
 
 pub struct ConnectionHandler<T> {
@@ -38,18 +39,18 @@ impl<T: RequestHandler> ::connection::ConnectionHandler for ConnectionHandler<T>
         }
         else {
           let mut resp = BufferResponse::new(500, "Internal Server Error");
-          resp.write_header("Content-Type", "text/plain");
-          resp.finish_head();
-          write!(resp, "No response from handler").unwrap();
-          resp
+          resp.set_header("Content-Type", "text/plain");
+          let mut body = resp.into_body();
+          write!(body, "No response from handler").unwrap();
+          body.finish()
         }
       }
       else {
         let mut resp = BufferResponse::bad_request();
-        resp.write_header("Content-Type", "text/plain");
-        resp.finish_head();
-        write!(resp, "Error while parsing request").unwrap();
-        resp
+        resp.set_header("Content-Type", "text/plain");
+        let mut body = resp.into_body();
+        write!(body, "Error while parsing request").unwrap();
+        body.finish()
       };
       let response_buf = response.as_slice();
       socket.write(response_buf).unwrap();

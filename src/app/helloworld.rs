@@ -1,4 +1,4 @@
-use http::{RequestHandler, Request, BufferResponse};
+use http::{RequestHandler, Request, BufferResponse, FinishedBufferResponse};
 use std::io::Write;
 
 pub struct HelloWorld {
@@ -12,18 +12,18 @@ impl HelloWorld {
 }
 
 impl RequestHandler for HelloWorld {
-  fn read_headers(&mut self, req: &Request) -> Option<BufferResponse> {
+  fn read_headers(&mut self, req: &Request) -> Option<FinishedBufferResponse> {
     let mut resp = BufferResponse::ok();
-    resp.write_header("Content-Type", "text/html");
-    resp.finish_head();
-    write!(resp, "<h1>Hello World!</h1>").unwrap();
-    write!(resp, "<p>You requested: <code>{} {}</code></p>\n", req.method(), req.uri()).unwrap();
+    resp.set_header("Content-Type", "text/html");
+    let mut body = resp.into_body();
+    write!(body, "<h1>Hello World!</h1>").unwrap();
+    write!(body, "<p>You requested: <code>{} {}</code></p>\n", req.method(), req.uri()).unwrap();
     if let Some(host) = req.headers().host {
-      write!(resp, "<p>With host: <code>{}</code></p>\n", host).unwrap();
+      write!(body, "<p>With host: <code>{}</code></p>\n", host).unwrap();
     }
-    Some(resp)
+    Some(body.finish())
   }
-  fn read_body(&mut self, body: &mut [u8]) -> Option<BufferResponse> {
+  fn read_body(&mut self, _: &mut [u8]) -> Option<FinishedBufferResponse> {
     None
   }
 }
