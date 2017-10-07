@@ -36,15 +36,22 @@ mod tests {
     let mut st = "foobar\r\nhello\r\n\r\nhaha".to_string();
     let mut s = unsafe { st.as_bytes_mut() };
     let mut splitter = super::HeaderBodySplitter::new();
-    assert_eq!(splitter.update(&mut s[0..13]), None);
-    assert_eq!(splitter.update(&mut s[0..16]), None);
-    match splitter.update(&mut s) {
+    assert_eq!(splitter.try_split(&mut s[0..13]), None);
+    assert_eq!(splitter.try_split(&mut s[0..16]), None);
+    match splitter.try_split(&mut s) {
       Some((headers, body)) => {
         assert_eq!(headers, b"foobar\r\nhello");
         assert_eq!(body, b"haha");
       }
       None => panic!("should be Some")
     };
+  }
+
+  #[test]
+  fn test_split_empty_buffer() {
+    let mut splitter = super::HeaderBodySplitter::new();
+    let mut empty_buf = [0u8; 0];
+    assert_eq!(splitter.try_split(&mut empty_buf), None);
   }
 
 }
