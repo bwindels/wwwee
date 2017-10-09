@@ -19,13 +19,17 @@ fn hex_to_byte(upperdigit: u8, lowerdigit: u8) -> Option<u8> {
 }
 
 pub fn url_decode(buffer: &mut [u8]) -> &mut [u8] {
+  const PLUS : u8 = 0x2B;
+  const SPACE : u8 = 0x20;
+  const PERCENT : u8 = 0x25;
+
   let mut write_idx = 0usize;
   let mut read_idx = 0usize;
 
   while read_idx < buffer.len() {
     match buffer[read_idx] {
-      0x2B => buffer[write_idx] = 0x20, //+ to space
-      0x25 => { //% encoded value
+      PLUS => buffer[write_idx] = SPACE,
+      PERCENT => {
         let decoded_byte = if let (Some(upperhex), Some(lowerhex))
           = (buffer.get(read_idx + 1), buffer.get(read_idx + 2))
         {
@@ -40,7 +44,7 @@ pub fn url_decode(buffer: &mut [u8]) -> &mut [u8] {
           read_idx += 2;
         }
         else if write_idx != read_idx {
-          buffer[write_idx] = 0x25; //%
+          buffer[write_idx] = PERCENT;
         }
       },
       _ => {
