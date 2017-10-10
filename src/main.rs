@@ -4,6 +4,8 @@ mod connection;
 mod server;
 mod http;
 mod app;
+#[cfg(test)]
+mod test_helpers;
 
 extern crate mio;
 

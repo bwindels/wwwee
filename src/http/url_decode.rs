@@ -63,19 +63,12 @@ pub fn url_decode(buffer: &mut [u8]) -> &mut [u8] {
 mod tests {
 
   use std::str;
-
-  fn copy_str(dst: &mut [u8], src: &[u8]) {
-    assert_eq!(src.len(), dst.len());
-    let mut src_it = src.iter();
-    for mut d in dst {
-      *d = *src_it.next().unwrap();
-    }
-  }
-
+  use test_helpers;
+  
   #[test]
   fn test_plus_space() {
     let mut buffer = [0u8; 11];
-    copy_str(&mut buffer, b"hello+world");
+    test_helpers::copy_str(&mut buffer, b"hello+world");
     let decoded = super::url_decode(&mut buffer);
     assert_eq!(decoded, b"hello world");
   }
@@ -90,7 +83,7 @@ mod tests {
   #[test]
   fn test_percent_encoded() {
     let mut buffer = [0u8; 13];
-    copy_str(&mut buffer, b"hello%20world");
+    test_helpers::copy_str(&mut buffer, b"hello%20world");
     let decoded = super::url_decode(&mut buffer);
     assert_eq!(decoded, b"hello world");
   }
@@ -100,12 +93,12 @@ mod tests {
   fn test_ff_byte() {
     let mut buffer = [0u8; 3];
     {
-      copy_str(&mut buffer, b"%FF");
+      test_helpers::copy_str(&mut buffer, b"%FF");
       let decoded = super::url_decode(&mut buffer);
       assert_eq!(decoded, [0xFFu8]);
     }
     {
-      copy_str(&mut buffer, b"%ff");
+      test_helpers::copy_str(&mut buffer, b"%ff");
       let decoded = super::url_decode(&mut buffer);
       assert_eq!(decoded, [0xFFu8]);
     }
@@ -115,12 +108,12 @@ mod tests {
   fn test_aa_byte() {
     let mut buffer = [0u8; 3];
     {
-      copy_str(&mut buffer, b"%AA");
+      test_helpers::copy_str(&mut buffer, b"%AA");
       let decoded = super::url_decode(&mut buffer);
       assert_eq!(decoded, [0xAAu8]);
     }
     {
-      copy_str(&mut buffer, b"%aa");
+      test_helpers::copy_str(&mut buffer, b"%aa");
       let decoded = super::url_decode(&mut buffer);
       assert_eq!(decoded, [0xAAu8]);
     }
@@ -129,7 +122,7 @@ mod tests {
   #[test]
   fn test_00_byte() {
     let mut buffer = [0u8; 3];
-    copy_str(&mut buffer, b"%00");
+    test_helpers::copy_str(&mut buffer, b"%00");
     let decoded = super::url_decode(&mut buffer);
     assert_eq!(decoded, [0x00u8]);
   }
@@ -137,7 +130,7 @@ mod tests {
   #[test]
   fn test_multiple_percent_encoded() {
     let mut buffer = [0u8; 22];
-    copy_str(&mut buffer, b"%31%32%33+to+%61%62%63");
+    test_helpers::copy_str(&mut buffer, b"%31%32%33+to+%61%62%63");
     let decoded = super::url_decode(&mut buffer);
     assert_eq!(decoded, b"123 to abc");
   }
@@ -145,7 +138,7 @@ mod tests {
   #[test]
   fn test_no_encoded_content() {
     let mut buffer = [0u8; 5];
-    copy_str(&mut buffer, b"hello");
+    test_helpers::copy_str(&mut buffer, b"hello");
     let decoded = super::url_decode(&mut buffer);
     assert_eq!(decoded, b"hello");
   }
@@ -153,12 +146,12 @@ mod tests {
   #[test]
   fn test_percent_at_end_preserved() {
     let mut buffer = [0u8; 6];
-    copy_str(&mut buffer, b"hello%");
+    test_helpers::copy_str(&mut buffer, b"hello%");
     let decoded = super::url_decode(&mut buffer);
     assert_eq!(decoded, b"hello%");
 
     let mut buffer = [0u8; 7];
-    copy_str(&mut buffer, b"hello%5");
+    test_helpers::copy_str(&mut buffer, b"hello%5");
     let decoded = super::url_decode(&mut buffer);
     assert_eq!(decoded, b"hello%5");
   }
@@ -166,7 +159,7 @@ mod tests {
   #[test]
   fn test_invalid_percent_encoding_preserved() {
     let mut buffer = [0u8; 13];
-    copy_str(&mut buffer, b"hello%GFworld");
+    test_helpers::copy_str(&mut buffer, b"hello%GFworld");
     let decoded = super::url_decode(&mut buffer);
     assert_eq!(decoded, b"hello%GFworld");
   }

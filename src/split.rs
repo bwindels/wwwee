@@ -80,19 +80,12 @@ impl<'a, S> Iterator for SplitMutIterator<'a, S>
 mod test {
 
   use std::str;
-
-  fn copy_str(dst: &mut [u8], src: &[u8]) {
-    assert_eq!(src.len(), dst.len());
-    let mut src_it = src.iter();
-    for mut d in dst {
-      *d = *src_it.next().unwrap();
-    }
-  }
-
+  use test_helpers;
+  
   #[test]
   fn test_byteslice_split() {
     let mut buffer = [0u8;8];
-    copy_str(&mut buffer, b"hi ho ha");
+    test_helpers::copy_str(&mut buffer, b"hi ho ha");
     let pattern = [0x20];
     let mut it = super::buffer_split_mut(buffer.as_mut(), pattern.as_ref());
     //the map turns the mut ref into a ref 
@@ -105,7 +98,7 @@ mod test {
   #[test]
   fn test_str_split() {
     let mut b = [0u8;8];
-    copy_str(&mut b, b"hi ho ha");
+    test_helpers::copy_str(&mut b, b"hi ho ha");
     let mut s = str::from_utf8_mut(&mut b).unwrap();
     let mut it = super::buffer_split_mut(s, " ");
     //the map turns the mut ref into a ref 
