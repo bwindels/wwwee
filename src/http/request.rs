@@ -1,6 +1,6 @@
 use super::headers::*;
 use super::{RequestResult, RequestError};
-use str::str_split_mut;
+use split::buffer_split_mut;
 use std::str;
 
 pub struct CommonHeaders<'a> {
@@ -45,7 +45,7 @@ impl<'a> Request<'a> {
     let mut headers = CommonHeaders::new();
     let mut request_line: Option<RequestLine> = None;
 
-    for line in str_split_mut(header_str, "\r\n") {
+    for line in buffer_split_mut(header_str, "\r\n") {
       if request_line.is_none() {
         request_line = Some(RequestLine::parse(line)?);
       }

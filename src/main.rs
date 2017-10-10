@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-mod str;
+mod split;
 mod connection;
 mod server;
 mod http;

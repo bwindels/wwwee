@@ -1,6 +1,6 @@
 use std::ascii::AsciiExt;
 use http::{RequestResult, RequestError};
-use str::str_split_mut;
+use split::buffer_split_mut;
 
 pub struct RawHeader<'a> {
   pub name: &'a str,
@@ -12,7 +12,7 @@ impl<'a> RawHeader<'a> {
     if let Some(idx) = line.find(":") {
       let (name, value) = line.split_at_mut(idx);
       name.make_ascii_uppercase();
-      for name_word in str_split_mut(name, "-") {
+      for name_word in buffer_split_mut(name, "-") {
         name_word[0..1].make_ascii_uppercase();
         name_word[1..].make_ascii_lowercase();
       }

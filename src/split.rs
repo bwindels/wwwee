@@ -42,7 +42,7 @@ pub struct SplitMutIterator<'a, S>
   pattern: &'a S,
 }
 
-pub fn str_split_mut<'a, S: SplitMutBuffer + 'a>(string: &'a mut S, pattern: &'a S) -> SplitMutIterator<'a, S> 
+pub fn buffer_split_mut<'a, S: SplitMutBuffer + 'a>(string: &'a mut S, pattern: &'a S) -> SplitMutIterator<'a, S> 
   where S: SplitMutBuffer + ?Sized + 'a
 {
   SplitMutIterator {
@@ -94,7 +94,7 @@ mod test {
     let mut buffer = [0u8;8];
     copy_str(&mut buffer, b"hi ho ha");
     let pattern = [0x20];
-    let mut it = super::str_split_mut(buffer.as_mut(), pattern.as_ref());
+    let mut it = super::buffer_split_mut(buffer.as_mut(), pattern.as_ref());
     //the map turns the mut ref into a ref 
     assert_eq!(it.next().map(|w| &*w), Some(b"hi".as_ref()));
     assert_eq!(it.next().map(|w| &*w), Some(b"ho".as_ref()));
@@ -107,7 +107,7 @@ mod test {
     let mut b = [0u8;8];
     copy_str(&mut b, b"hi ho ha");
     let mut s = str::from_utf8_mut(&mut b).unwrap();
-    let mut it = super::str_split_mut(s, " ");
+    let mut it = super::buffer_split_mut(s, " ");
     //the map turns the mut ref into a ref 
     assert_eq!(it.next().map(|w| &*w), Some("hi"));
     assert_eq!(it.next().map(|w| &*w), Some("ho"));
