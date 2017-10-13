@@ -5,6 +5,7 @@ mod request;
 mod response;
 mod error;
 mod url_decode;
+mod str;
 
 pub use self::headers::*;
 pub use self::connection::*;
