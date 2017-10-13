@@ -18,6 +18,7 @@ impl RequestHandler for HelloWorld {
     let mut body = resp.into_body();
     write!(body, "<h1>Hello World!</h1>").unwrap();
     write!(body, "<p>You requested: <code>{} {}</code></p>\n", req.method(), req.uri()).unwrap();
+    write!(body, "<p>Query string: <code>{}</code></p>\n", req.querystring()).unwrap();
     if let Some(host) = req.headers().host {
       write!(body, "<p>With host: <code>{}</code></p>\n", host).unwrap();
     }
