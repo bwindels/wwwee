@@ -1,11 +1,11 @@
-pub trait SplitMutBuffer {
+pub trait BufferExt {
   fn split_at_mut(&mut self, index: usize) -> (&mut Self, &mut Self);
   fn find(&self, pattern: &Self) -> Option<usize>;
   fn len(&self) -> usize;
   fn remove_left(&mut self, index: usize) -> &mut Self;
 }
 
-impl SplitMutBuffer for str {
+impl BufferExt for str {
   fn split_at_mut(&mut self, index: usize) -> (&mut Self, &mut Self) {
     self.split_at_mut(index)
   }
@@ -20,7 +20,7 @@ impl SplitMutBuffer for str {
   }
 }
 
-impl SplitMutBuffer for [u8] {
+impl BufferExt for [u8] {
   fn split_at_mut(&mut self, index: usize) -> (&mut [u8], &mut [u8]) {
     self.split_at_mut(index)
   }
@@ -36,14 +36,14 @@ impl SplitMutBuffer for [u8] {
 }
 
 pub struct SplitMutIterator<'a, S>
-  where S: SplitMutBuffer + ?Sized + 'a
+  where S: BufferExt + ?Sized + 'a
 {
   string: Option<&'a mut S>,
   pattern: &'a S,
 }
 
-pub fn buffer_split_mut<'a, S: SplitMutBuffer + 'a>(string: &'a mut S, pattern: &'a S) -> SplitMutIterator<'a, S> 
-  where S: SplitMutBuffer + ?Sized + 'a
+pub fn buffer_split_mut<'a, S: BufferExt + 'a>(string: &'a mut S, pattern: &'a S) -> SplitMutIterator<'a, S> 
+  where S: BufferExt + ?Sized + 'a
 {
   SplitMutIterator {
     string: Some(string),
@@ -52,7 +52,7 @@ pub fn buffer_split_mut<'a, S: SplitMutBuffer + 'a>(string: &'a mut S, pattern: 
 }
 
 impl<'a, S> Iterator for SplitMutIterator<'a, S>
-  where S: SplitMutBuffer + ?Sized + 'a
+  where S: BufferExt + ?Sized + 'a
 {
   type Item = &'a mut S;
 
