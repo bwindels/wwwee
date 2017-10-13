@@ -41,11 +41,10 @@ pub struct Request<'a> {
 
 impl<'a> Request<'a> {
   pub fn parse(header_bytes: &'a mut [u8]) -> RequestResult<Request<'a>> {
-    let header_str = str::from_utf8_mut(header_bytes).map_err(|_| RequestError::InvalidEncoding)?;
     let mut headers = CommonHeaders::new();
     let mut request_line: Option<RequestLine> = None;
 
-    for line in buffer_split_mut(header_str, "\r\n") {
+    for line in buffer_split_mut(header_bytes, b"\r\n") {
       if request_line.is_none() {
         request_line = Some(RequestLine::parse(line)?);
       }
@@ -73,6 +72,10 @@ impl<'a> Request<'a> {
 
   pub fn method(&self) -> &'a str {
     self.request_line.method
+  }
+
+  pub fn querystring(&self) -> &'a str {
+    self.request_line.querystring
   }
 
   pub fn headers(&self) -> &'a CommonHeaders {

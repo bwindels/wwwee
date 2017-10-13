@@ -1,5 +1,6 @@
 use super::{MimeType, Authorization, ContentRange, RawHeader};
 use http::{RequestResult, RequestError};
+use http::str::slice_to_str;
 use std::str::FromStr;
 
 pub enum Header<'a> {
@@ -18,7 +19,7 @@ fn parse_u64(num_str: &str) -> RequestResult<u64> {
 
 impl<'a> Header<'a> {
   pub fn from_raw(raw_header: RawHeader<'a>) -> RequestResult<Header<'a>> {
-    let value = raw_header.value;
+    let value = slice_to_str(raw_header.value)?;
     let header = match raw_header.name {
       "Host" => Header::Host(value),
       "Authorization" => Header::Authorization(Authorization::parse(value)?),
