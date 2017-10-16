@@ -3,5 +3,6 @@
     - implement sending static files as response
  - security
    - TLS
+   - HSTS
    - do we need CORS? is the implemented in the handler or in the connection?
    - is there any stuff we need to do to prevent XSS?
