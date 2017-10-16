@@ -1,8 +1,10 @@
  - implement url encoded params parsing
  - work on response code
     - implement sending static files as response
+     - set TCP_CORK - http://baus.net/on-tcp_cork
+ - implement cross-request state
  - security
-   - TLS
+   - TLS - https://bearssl.org/
    - HSTS
    - do we need CORS? is the implemented in the handler or in the connection?
    - is there any stuff we need to do to prevent XSS?
