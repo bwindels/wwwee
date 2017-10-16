@@ -31,6 +31,12 @@ Once we have the body, we pass it to the application.
 
 The application can send a response through filling it's own buffer and passing that to the responder, that will write a bit every time the socket becomes writeable, or using sendfile.
 
+Right now everything revolves around the Connection struct. But if we have determined what the response should be to a request, we need to keep track of the socket to write the response, but we won't use the read buffer at that time. We could move the socket to a pool of Responser structs, one for buffer Responders, and one for static file Responders (using sendfile). We could have more responders than Connections. Especially static files we can serve cheaply. So once a connection has returned it's responder, we put the responder data, together with the socket in a responder, and mark the connection as free.
+
+## TLS & sendfile
+
+If we want to use sendfile and TLS together, we'll need to tie ourselves to linux only and use kernel TLS encryption. https://blog.filippo.io/playing-with-kernel-tls-in-linux-4-13-and-go/
+
 # JSON
 
 We'll also write a stack based JSON parser, that we can use to parse the body with once it's read in
