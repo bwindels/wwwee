@@ -47,3 +47,6 @@ We'll have a preallocated pool of connections. If we run out, we respond with `4
 # Implementation
 
 - use `uhttp_media_type` to parse content-type/accept headers
+
+# Optimization ideas
+ - can we use readv with 1 or 2 iovecs so we don't have to copy over data to the beginning after comsuming part of the read buffer (like processing headers)? Would be hard to adapt our code to this because we couldn't process the read result as one slice, which is a hard assumption now in our code.
