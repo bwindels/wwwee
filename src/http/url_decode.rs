@@ -22,13 +22,38 @@ fn hex_to_byte(upperdigit: u8, lowerdigit: u8) -> Option<u8> {
   }
 }
 
+/*
+Starts writing the decoded value at index 1 instead of 0.
+This would only be used if the buffer contains a
+percent encoded value (check with `contains_percent_values`).
+This leaves a byte at the beginning of the buffer to put a marker of some sort.
+See the implementation of `UrlEncodedParams`.
+
+If used on values without percent encoded values, it will trim off the last character.
+The first byte is never written.
+*/
+pub fn url_decode_and_move_1(buffer: &mut [u8]) -> &mut [u8] {
+  url_decode_with_offset_flag(buffer, true)
+}
+
 pub fn url_decode(buffer: &mut [u8]) -> &mut [u8] {
-  let mut write_idx = 0usize;
+  url_decode_with_offset_flag(buffer, false)
+}
+
+
+fn url_decode_with_offset_flag(buffer: &mut [u8], write_offset_1: bool) -> &mut [u8] {
+  if buffer.len() == 0 {
+    return buffer;
+  }
+
+  let mut write_idx = if write_offset_1 {1usize} else {0usize};
+  let offset = write_idx;
   let mut read_idx = 0usize;
+  let mut byte = buffer[read_idx];
 
   while read_idx < buffer.len() {
-    match buffer[read_idx] {
-      PLUS => buffer[write_idx] = SPACE,
+    let new_byte = match byte {
+      PLUS => SPACE,
       PERCENT => {
         let decoded_byte = if let (Some(upperhex), Some(lowerhex))
           = (buffer.get(read_idx + 1), buffer.get(read_idx + 2))
@@ -40,23 +65,30 @@ pub fn url_decode(buffer: &mut [u8]) -> &mut [u8] {
         };
 
         if let Some(decoded_byte) = decoded_byte {
-          buffer[write_idx] = decoded_byte;
           read_idx += 2;
+          decoded_byte
         }
-        else if write_idx != read_idx {
-          buffer[write_idx] = PERCENT;
+        else {
+          PERCENT
         }
       },
-      _ => {
-        if write_idx != read_idx {
-          buffer[write_idx] = buffer[read_idx];
-        }
-      }
+      _ => byte
     };
-    write_idx += 1;
+    //advance and read new value
     read_idx += 1;
+    if read_idx < buffer.len() {
+      byte = buffer[read_idx];
+    }
+    //write new value to old index
+    //since the new value is already read,
+    //we can write to read_idx + 1 without
+    //overwriting an unprocessed byte
+    if write_idx < buffer.len() {
+      buffer[write_idx] = new_byte;
+      write_idx += 1;
+    }
   }
-  &mut buffer[.. write_idx]
+  &mut buffer[ offset .. write_idx]
 }
 
 pub fn contains_percent_values(buffer: &[u8]) -> bool {
@@ -207,6 +239,72 @@ mod tests {
     assert!(!super::contains_percent_values(b"hello%5"));
     assert!(!super::contains_percent_values(b"hello+world"));
     assert!(!super::contains_percent_values(b"hello%GFworld"));
+  }
+
+  #[test]
+  fn test_move_1_no_encoding() {
+    let mut buffer = [0u8; 5];
+    test_helpers::copy_str(&mut buffer, b"hello");
+    {
+      let decoded = super::url_decode_and_move_1(&mut buffer);
+      assert_eq!(decoded, b"hell");
+    }
+    assert_eq!(&buffer, b"hhell");
+  }
+
+    #[test]
+  fn test_move_1_plus_encoding() {
+    let mut buffer = [0u8; 11];
+    test_helpers::copy_str(&mut buffer, b"hello+world");
+    {
+      let decoded = super::url_decode_and_move_1(&mut buffer);
+      assert_eq!(decoded, b"hello worl");
+    }
+    assert_eq!(&buffer, b"hhello worl");
+  }
+
+  #[test]
+  fn test_move_1_middle_percent() {
+    let mut buffer = [0u8; 13];
+    test_helpers::copy_str(&mut buffer, b"hello%20world");
+    {
+      let decoded = super::url_decode_and_move_1(&mut buffer);
+      assert_eq!(decoded, b"hello world");
+    }
+    assert_eq!(&buffer, b"hhello worldd");
+  }
+
+  #[test]
+  fn test_move_1_start_percent() {
+    let mut buffer = [0u8; 8];
+    test_helpers::copy_str(&mut buffer, b"%20hello");
+    {
+      let decoded = super::url_decode_and_move_1(&mut buffer);
+      assert_eq!(decoded, b" hello");
+    }
+    assert_eq!(&buffer, b"% helloo");
+  }
+
+  #[test]
+  fn test_move_1_end_percent() {
+    let mut buffer = [0u8; 8];
+    test_helpers::copy_str(&mut buffer, b"hello%20");
+    {
+      let decoded = super::url_decode_and_move_1(&mut buffer);
+      assert_eq!(decoded, b"hello ");
+    }
+    assert_eq!(&buffer, b"hhello 0");
+  }
+
+  #[test]
+  fn test_move_1_multiple_percent() {
+    let mut buffer = [0u8; 30];
+    test_helpers::copy_str(&mut buffer, b"hello%20world%20%26%20good+day");
+    {
+      let decoded = super::url_decode_and_move_1(&mut buffer);
+      assert_eq!(decoded, b"hello world & good day");
+    }
+    assert_eq!(&buffer, b"hhello world & good dayood+day");
   }
   
 }
