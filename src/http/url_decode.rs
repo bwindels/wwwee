@@ -1,3 +1,7 @@
+const PLUS : u8 = 0x2B;
+const SPACE : u8 = 0x20;
+const PERCENT : u8 = 0x25;
+
 fn hex_decode_digit(c: u8) -> Option<u8> {
   match c {
     0x61 ... 0x66 => Some(10 + (c - 0x61)),  //a-f
@@ -19,10 +23,6 @@ fn hex_to_byte(upperdigit: u8, lowerdigit: u8) -> Option<u8> {
 }
 
 pub fn url_decode(buffer: &mut [u8]) -> &mut [u8] {
-  const PLUS : u8 = 0x2B;
-  const SPACE : u8 = 0x20;
-  const PERCENT : u8 = 0x25;
-
   let mut write_idx = 0usize;
   let mut read_idx = 0usize;
 
@@ -57,6 +57,32 @@ pub fn url_decode(buffer: &mut [u8]) -> &mut [u8] {
     read_idx += 1;
   }
   &mut buffer[.. write_idx]
+}
+
+pub fn contains_percent_values(buffer: &[u8]) -> bool {
+  let mut match_hex_digits = 0;
+  for &byte in buffer {
+    //currently matching hex digits after %?
+    if match_hex_digits != 0 {
+      //if the current byte isn't a hex digit, stop looking
+      if hex_decode_digit(byte).is_none() {
+        match_hex_digits = 0;
+      }
+      //else mark one as done, and see if we've finished to return true
+      else {
+        match_hex_digits -= 1;
+        if match_hex_digits == 0 {
+          return true;
+        }
+      }
+    }
+    //match the next 2 bytes as hex digits,
+    //if they are, this slice contains percent encoded values!
+    if byte == PERCENT {
+      match_hex_digits = 2;
+    }
+  }
+  return false;
 }
 
 #[cfg(test)]
@@ -136,6 +162,14 @@ mod tests {
   }
 
   #[test]
+  fn test_double_percent_encoded() {
+    let mut buffer = [0u8; 4];
+    test_helpers::copy_str(&mut buffer, b"%%31");
+    let decoded = super::url_decode(&mut buffer);
+    assert_eq!(decoded, b"%1");
+  }
+
+  #[test]
   fn test_no_encoded_content() {
     let mut buffer = [0u8; 5];
     test_helpers::copy_str(&mut buffer, b"hello");
@@ -162,6 +196,17 @@ mod tests {
     test_helpers::copy_str(&mut buffer, b"hello%GFworld");
     let decoded = super::url_decode(&mut buffer);
     assert_eq!(decoded, b"hello%GFworld");
+  }
+
+  #[test]
+  fn test_contains_percent_values() {
+    assert!(super::contains_percent_values(b"hello%20world"));
+    assert!(super::contains_percent_values(b"hello%20"));
+    assert!(super::contains_percent_values(b"%%20"));
+    assert!(!super::contains_percent_values(b"hello%"));
+    assert!(!super::contains_percent_values(b"hello%5"));
+    assert!(!super::contains_percent_values(b"hello+world"));
+    assert!(!super::contains_percent_values(b"hello%GFworld"));
   }
   
 }
