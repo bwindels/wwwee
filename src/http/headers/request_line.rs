@@ -31,14 +31,17 @@ impl<'a> RequestLine<'a> {
       if let Some(version) = http_version.get(5..) {
         method.make_ascii_uppercase();
 
-        let uri = url_decode(uri);
-        let (uri, querystring) = if let Some(query_idx) = uri.find(b"?") {
+        let (uri, querystring) = if let Some(query_idx) = uri.position(b"?") {
           let (uri, querystring) = uri.split_at_mut(query_idx);
-          let querystring = &querystring[1..];
+          let uri = url_decode(uri);
+          let querystring = &mut querystring[1..];
+          let querystring = url_decode(querystring);
           (uri, querystring)
         }
         else {
-          (uri, b"".as_ref())
+          let (querystring, uri) = uri.split_at_mut(0);
+          let uri = url_decode(uri);
+          (uri, querystring)
         };
         let uri = slice_to_str(uri)?;
 
@@ -74,5 +77,13 @@ mod tests {
     assert_eq!(req_line.method, "GET");
     assert_eq!(req_line.uri, "/foo");
     assert_eq!(req_line.version, "1.1");
+  }
+  #[test]
+  fn test_escaped_query() {
+    let mut s = [0u8; 27];
+    copy_str(&mut s, b"GET /foo%3F?%3Fbar HTTP/1.1");
+    let req_line = super::RequestLine::parse(&mut s).unwrap();
+    assert_eq!(req_line.uri, "/foo?");
+    assert_eq!(req_line.querystring, "?bar");
   }
 }

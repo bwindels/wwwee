@@ -1,6 +1,6 @@
 pub trait BufferExt {
   fn split_at_mut(&mut self, index: usize) -> (&mut Self, &mut Self);
-  fn find(&self, pattern: &Self) -> Option<usize>;
+  fn position(&self, pattern: &Self) -> Option<usize>;
   fn len(&self) -> usize;
   fn remove_left(&mut self, index: usize) -> &mut Self;
 }
@@ -9,7 +9,7 @@ impl BufferExt for str {
   fn split_at_mut(&mut self, index: usize) -> (&mut Self, &mut Self) {
     self.split_at_mut(index)
   }
-  fn find(&self, pattern: &Self) -> Option<usize> {
+  fn position(&self, pattern: &Self) -> Option<usize> {
     self.find(pattern)
   }
   fn len(&self) -> usize {
@@ -24,7 +24,7 @@ impl BufferExt for [u8] {
   fn split_at_mut(&mut self, index: usize) -> (&mut [u8], &mut [u8]) {
     self.split_at_mut(index)
   }
-  fn find(&self, pattern: &[u8]) -> Option<usize> {
+  fn position(&self, pattern: &[u8]) -> Option<usize> {
     self.windows(pattern.len()).position(|buf| buf == pattern)
   }
   fn len(&self) -> usize {
@@ -61,7 +61,7 @@ impl<'a, S> Iterator for SplitMutIterator<'a, S>
       Some(s) => s,
       None => return None,
     };
-    if let Some(end_idx) = s.find(self.pattern) {
+    if let Some(end_idx) = s.position(self.pattern) {
       let (subslice, remainder) = s.split_at_mut(end_idx);
       let remainder_w_pattern = remainder.remove_left(self.pattern.len());
       self.string = Some(remainder_w_pattern);

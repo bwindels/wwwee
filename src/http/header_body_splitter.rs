@@ -17,7 +17,7 @@ impl HeaderBodySplitter {
     self.find_offset = buffer.len();
 
     buffer.get(offset..).and_then(|search_space| {
-      search_space.find(HEADER_END)
+      search_space.position(HEADER_END)
     })
     .map(|header_end| offset + header_end + HEADER_END.len())
     .map(move |header_end| buffer.split_at_mut(header_end))

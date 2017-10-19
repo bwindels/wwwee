@@ -11,7 +11,7 @@ pub struct RawHeader<'a> {
 
 impl<'a> RawHeader<'a> {
   pub fn parse(line: &'a mut [u8]) -> RequestResult<RawHeader<'a>> {
-    if let Some(idx) = line.find(b":") {
+    if let Some(idx) = line.position(b":") {
       let (name, value) = line.split_at_mut(idx);
       name.make_ascii_uppercase();
       for name_word in buffer_split_mut(name, b"-") {
