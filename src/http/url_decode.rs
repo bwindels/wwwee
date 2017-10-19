@@ -249,7 +249,7 @@ mod tests {
       let decoded = super::url_decode_and_move_1(&mut buffer);
       assert_eq!(decoded, b"hell");
     }
-    assert_eq!(&buffer, b"hhell");
+    assert_eq!(&buffer,  b"hhell");
   }
 
     #[test]
@@ -260,7 +260,7 @@ mod tests {
       let decoded = super::url_decode_and_move_1(&mut buffer);
       assert_eq!(decoded, b"hello worl");
     }
-    assert_eq!(&buffer, b"hhello worl");
+    assert_eq!(&buffer,  b"hhello worl");
   }
 
   #[test]
@@ -271,7 +271,7 @@ mod tests {
       let decoded = super::url_decode_and_move_1(&mut buffer);
       assert_eq!(decoded, b"hello world");
     }
-    assert_eq!(&buffer, b"hhello worldd");
+    assert_eq!(&buffer,  b"hhello worldd");
   }
 
   #[test]
@@ -282,7 +282,7 @@ mod tests {
       let decoded = super::url_decode_and_move_1(&mut buffer);
       assert_eq!(decoded, b" hello");
     }
-    assert_eq!(&buffer, b"% helloo");
+    assert_eq!(&buffer,  b"% helloo");
   }
 
   #[test]
@@ -293,7 +293,7 @@ mod tests {
       let decoded = super::url_decode_and_move_1(&mut buffer);
       assert_eq!(decoded, b"hello ");
     }
-    assert_eq!(&buffer, b"hhello 0");
+    assert_eq!(&buffer,  b"hhello 0");
   }
 
   #[test]
@@ -304,7 +304,7 @@ mod tests {
       let decoded = super::url_decode_and_move_1(&mut buffer);
       assert_eq!(decoded, b"hello world & good day");
     }
-    assert_eq!(&buffer, b"hhello world & good dayood+day");
+    assert_eq!(&buffer,  b"hhello world & good dayood+day");
   }
   
 }
