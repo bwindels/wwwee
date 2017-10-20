@@ -2,7 +2,8 @@
 pub enum RequestError {
   InvalidRequestLine,
   InvalidHeader,
-  InvalidEncoding
+  InvalidEncoding,
+  UrlEncodedNul
 }
 
 pub type RequestResult<T> = Result<T, RequestError>;
