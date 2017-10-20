@@ -99,7 +99,7 @@ mod test {
   fn test_str_split() {
     let mut b = [0u8;8];
     test_helpers::copy_str(&mut b, b"hi ho ha");
-    let mut s = str::from_utf8_mut(&mut b).unwrap();
+    let s = str::from_utf8_mut(&mut b).unwrap();
     let mut it = super::buffer_split_mut(s, " ");
     //the map turns the mut ref into a ref 
     assert_eq!(it.next().map(|w| &*w), Some("hi"));

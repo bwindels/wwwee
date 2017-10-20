@@ -1,8 +1,7 @@
 use connection::{Connection, ConnectionHandler};
 
 use mio::*;
-use mio::net::{TcpListener, TcpStream};
-use std::io::{Read, Write};
+use mio::net::TcpListener;
 use std::net::SocketAddr;
 use std::io;
 use std::mem;
