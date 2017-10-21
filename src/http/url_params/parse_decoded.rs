@@ -40,7 +40,7 @@ pub fn parse_decoded_component(buffer: &[u8], kind: ComponentKind) -> (Range<usi
       },
       _ => ()
     }
-    prev_nul = chr == NUL;
+    prev_nul = i != 0 && chr == NUL;
   }
 
   let end_idx = end_idx.unwrap_or(buffer.len());
@@ -139,5 +139,12 @@ mod tests {
     let (range, next_idx) = super::parse_decoded_component(buffer, Value);
     assert_eq!(&buffer[range], b"");
     assert_eq!(&buffer[next_idx .. ], b"bar");
+  }
+  #[test]
+  fn test_param_with_ampersand_or_assign_first() {
+    let buffer = b"\0=\0";
+    let (range, next_idx) = super::parse_decoded_component(buffer, Name);
+    assert_eq!(&buffer[range], b"=");
+    assert_eq!(&buffer[next_idx .. ], b""); 
   }
 }
