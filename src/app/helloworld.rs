@@ -16,6 +16,7 @@ impl RequestHandler for HelloWorld {
     let mut resp = BufferResponse::ok();
     resp.set_header("Content-Type", "text/html");
     let mut body = resp.into_body();
+    write!(body, "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body>").unwrap();
     write!(body, "<h1>Hello World!</h1>").unwrap();
     write!(body, "<p>You requested: <code>{} {}</code></p>", req.method(), req.uri()).unwrap();
     
@@ -28,6 +29,7 @@ impl RequestHandler for HelloWorld {
     if let Some(host) = req.headers().host {
       write!(body, "<p>With host: <code>{}</code></p>\n", host).unwrap();
     }
+    write!(body, "</body></html>").unwrap();
     Some(body.finish())
   }
   fn read_body(&mut self, _: &mut [u8]) -> Option<FinishedBufferResponse> {
