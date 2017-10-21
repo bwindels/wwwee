@@ -67,7 +67,7 @@ fn handle_no_response() -> FinishedBufferResponse {
 fn handle_io_error(err: io::Error) -> Option<FinishedBufferResponse> {
   let mut resp = BufferResponse::internal_server_error();
   let msg = match err.kind() {
-    ErrorKind::UnexpectedEof => "Response too big for buffer",
+    ErrorKind::WriteZero => "Response too big for buffer",
     _ => "Unknown IO error"
   };
   resp.set_header("Content-Type", "text/plain");
