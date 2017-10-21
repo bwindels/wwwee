@@ -66,8 +66,8 @@ impl<'a> Request<'a> {
     }
   }
 
-  pub fn uri(&self) -> &'a str {
-    self.request_line.uri
+  pub fn url(&self) -> &'a str {
+    self.request_line.url
   }
 
   pub fn method(&self) -> &'a str {
@@ -75,7 +75,7 @@ impl<'a> Request<'a> {
   }
 
   pub fn query_params(&self) -> UrlEncodedParamsIterator<'a> {
-    self.request_line.querystring.iter()
+    self.request_line.query_params.iter()
   }
 
   pub fn headers(&self) -> &'a CommonHeaders {

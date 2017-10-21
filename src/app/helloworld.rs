@@ -18,7 +18,7 @@ impl RequestHandler for HelloWorld {
     let mut body = resp.into_body();
     write!(body, "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body>").unwrap();
     write!(body, "<h1>Hello World!</h1>").unwrap();
-    write!(body, "<p>You requested: <code>{} {}</code></p>", req.method(), req.uri()).unwrap();
+    write!(body, "<p>You requested: <code>{} {}</code></p>", req.method(), req.url()).unwrap();
     
     write!(body, "<p>Query parameters:</p>").unwrap();
     write!(body, "<ul>").unwrap();

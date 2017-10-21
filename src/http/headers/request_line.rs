@@ -18,29 +18,29 @@ impl HttpVersion {
 
 pub struct RequestLine<'a> {
   pub method: &'a str,
-  pub uri: &'a str,
+  pub url: &'a str,
   pub version: &'a str,
-  pub querystring: UrlEncodedParams<'a>
+  pub query_params: UrlEncodedParams<'a>
 }
 
 impl<'a> RequestLine<'a> {
   pub fn parse(line: &'a mut [u8]) -> RequestResult<RequestLine<'a>> {
     let mut words = buffer_split_mut(line, b" ").filter(|s| s.len() != 0);
     let method = words.next();
-    let uri = words.next();
+    let url = words.next();
     let http_version = words.next();
 
-    if let (Some(method), Some(uri), Some(http_version)) = (method, uri, http_version) {
+    if let (Some(method), Some(url), Some(http_version)) = (method, url, http_version) {
       if let Some(version) = http_version.get(5..) {
         method.make_ascii_uppercase();
-        let (uri, querystring) = try_split_two_mut(uri, b"?");
+        let (url, querystring) = try_split_two_mut(url, b"?");
         let querystring = querystring.unwrap_or([0u8; 0].as_mut());
-        let uri = url_decode(uri);
+        let url = url_decode(url);
 
         return Ok(RequestLine {
           method: slice_to_str(method)?,
-          uri: slice_to_str(uri)?,
-          querystring: UrlEncodedParams::decode_and_create(querystring)?,
+          url: slice_to_str(url)?,
+          query_params: UrlEncodedParams::decode_and_create(querystring)?,
           version: slice_to_str(version)?
         });
       }
@@ -58,7 +58,7 @@ mod tests {
     copy_str(&mut s, b"GET  /foo   HTTP/1.1");
     let req_line = super::RequestLine::parse(&mut s).unwrap();
     assert_eq!(req_line.method, "GET");
-    assert_eq!(req_line.uri, "/foo");
+    assert_eq!(req_line.url, "/foo");
     assert_eq!(req_line.version, "1.1");
   }
   #[test]
@@ -67,7 +67,7 @@ mod tests {
     copy_str(&mut s, b"get /foo HTTP/1.1");
     let req_line = super::RequestLine::parse(&mut s).unwrap();
     assert_eq!(req_line.method, "GET");
-    assert_eq!(req_line.uri, "/foo");
+    assert_eq!(req_line.url, "/foo");
     assert_eq!(req_line.version, "1.1");
   }
   #[test]
@@ -75,8 +75,8 @@ mod tests {
     let mut s = [0u8; 27];
     copy_str(&mut s, b"GET /foo%3F?%3Fbar HTTP/1.1");
     let req_line = super::RequestLine::parse(&mut s).unwrap();
-    assert_eq!(req_line.uri, "/foo?");
-    let mut qs_iter = req_line.querystring.iter();
+    assert_eq!(req_line.url, "/foo?");
+    let mut qs_iter = req_line.query_params.iter();
     let bar = qs_iter.next().unwrap();
     assert_eq!(bar.name, "?bar");
   }
