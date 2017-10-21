@@ -1,5 +1,5 @@
-use super::headers::*;
-use super::{RequestResult, RequestError};
+use http::headers::*;
+use http::{RequestResult, RequestError, UrlEncodedParamsIterator};
 use split::buffer_split_mut;
 use std::str;
 
@@ -74,8 +74,8 @@ impl<'a> Request<'a> {
     self.request_line.method
   }
 
-  pub fn querystring(&self) -> &'a str {
-    self.request_line.querystring
+  pub fn query_params(&self) -> UrlEncodedParamsIterator<'a> {
+    self.request_line.querystring.iter()
   }
 
   pub fn headers(&self) -> &'a CommonHeaders {

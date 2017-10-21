@@ -1,5 +1,5 @@
 use split::{buffer_split_mut, BufferExt};
-use http::{RequestResult, RequestError, url_decode};
+use http::{RequestResult, RequestError, url_decode, UrlEncodedParams};
 use std::ascii::AsciiExt;
 use http::str::slice_to_str;
 
@@ -17,7 +17,7 @@ pub struct RequestLine<'a> {
   pub method: &'a str,
   pub uri: &'a str,
   pub version: &'a str,
-  pub querystring: &'a str
+  pub querystring: UrlEncodedParams<'a>
 }
 
 impl<'a> RequestLine<'a> {
@@ -35,7 +35,6 @@ impl<'a> RequestLine<'a> {
           let (uri, querystring) = uri.split_at_mut(query_idx);
           let uri = url_decode(uri);
           let querystring = &mut querystring[1..];
-          let querystring = url_decode(querystring);
           (uri, querystring)
         }
         else {
@@ -48,7 +47,7 @@ impl<'a> RequestLine<'a> {
         return Ok(RequestLine {
           method: slice_to_str(method)?,
           uri,
-          querystring: slice_to_str(querystring)?,
+          querystring: UrlEncodedParams::decode_and_create(querystring)?,
           version: slice_to_str(version)?
         });
       }
@@ -84,6 +83,8 @@ mod tests {
     copy_str(&mut s, b"GET /foo%3F?%3Fbar HTTP/1.1");
     let req_line = super::RequestLine::parse(&mut s).unwrap();
     assert_eq!(req_line.uri, "/foo?");
-    assert_eq!(req_line.querystring, "?bar");
+    let qs_iter = req_line.querystring.iter();
+    let bar = qs_iter.next().unwrap();
+    assert_eq!(bar.name, "?bar");
   }
 }
