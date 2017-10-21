@@ -1,5 +1,6 @@
 use super::error::*;
 use std::str;
+use split::BufferExt;
 
 pub fn is_whitespace(b: u8) -> bool {
   b == 0x20 || b == 0x09
@@ -26,6 +27,18 @@ pub fn trim<P>(buffer: &[u8], predicate: P) -> &[u8] where P: Fn(u8) -> bool {
 pub fn slice_to_str(slice: &[u8]) -> RequestResult<&str> {
   str::from_utf8(slice).or(Err(RequestError::InvalidEncoding))
 }
+
+pub fn try_split_two_mut<'a>(buffer: &'a mut [u8], operator: &[u8]) -> (&'a mut [u8], Option<&'a mut [u8]>) {
+  if let Some(operator_idx) = buffer.position(operator) {
+    let (lhs, remainder) = buffer.split_at_mut(operator_idx);
+    let rhs = &mut remainder[ 1 .. ];
+    (lhs, Some(rhs) )
+  }
+  else {
+    (buffer, None)
+  }
+}
+
 
 #[cfg(test)]
 mod tests {

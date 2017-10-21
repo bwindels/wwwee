@@ -3,7 +3,8 @@ use http::url_decode::{
   url_decode_and_move_1,
   contains_percent_values
 };
-use split::{BufferExt, buffer_split_mut};
+use http::str::try_split_two_mut;
+use split::buffer_split_mut;
 use http::error::{RequestError, RequestResult};
 use std::str::from_utf8;
 
@@ -52,17 +53,6 @@ fn validate_component(buffer: &[u8]) -> RequestResult<()> {
   }
   else {
     Ok( () )
-  }
-}
-
-fn try_split_two_mut<'a>(buffer: &'a mut [u8], operator: &[u8]) -> (&'a mut [u8], Option<&'a mut [u8]>) {
-  if let Some(operator_idx) = buffer.position(operator) {
-    let (lhs, remainder) = buffer.split_at_mut(operator_idx);
-    let rhs = &mut remainder[ 1 .. ];
-    (lhs, Some(rhs) )
-  }
-  else {
-    (buffer, None)
   }
 }
 

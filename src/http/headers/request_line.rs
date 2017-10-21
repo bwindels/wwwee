@@ -1,7 +1,10 @@
 use split::{buffer_split_mut, BufferExt};
 use http::{RequestResult, RequestError, url_decode, UrlEncodedParams};
 use std::ascii::AsciiExt;
-use http::str::slice_to_str;
+use http::str::{
+  slice_to_str,
+  try_split_two_mut
+};
 
 pub struct HttpVersion {
   
@@ -30,23 +33,13 @@ impl<'a> RequestLine<'a> {
     if let (Some(method), Some(uri), Some(http_version)) = (method, uri, http_version) {
       if let Some(version) = http_version.get(5..) {
         method.make_ascii_uppercase();
-
-        let (uri, querystring) = if let Some(query_idx) = uri.position(b"?") {
-          let (uri, querystring) = uri.split_at_mut(query_idx);
-          let uri = url_decode(uri);
-          let querystring = &mut querystring[1..];
-          (uri, querystring)
-        }
-        else {
-          let (querystring, uri) = uri.split_at_mut(0);
-          let uri = url_decode(uri);
-          (uri, querystring)
-        };
-        let uri = slice_to_str(uri)?;
+        let (uri, querystring) = try_split_two_mut(uri, b"?");
+        let querystring = querystring.unwrap_or([0u8; 0].as_mut());
+        let uri = url_decode(uri);
 
         return Ok(RequestLine {
           method: slice_to_str(method)?,
-          uri,
+          uri: slice_to_str(uri)?,
           querystring: UrlEncodedParams::decode_and_create(querystring)?,
           version: slice_to_str(version)?
         });
@@ -83,7 +76,7 @@ mod tests {
     copy_str(&mut s, b"GET /foo%3F?%3Fbar HTTP/1.1");
     let req_line = super::RequestLine::parse(&mut s).unwrap();
     assert_eq!(req_line.uri, "/foo?");
-    let qs_iter = req_line.querystring.iter();
+    let mut qs_iter = req_line.querystring.iter();
     let bar = qs_iter.next().unwrap();
     assert_eq!(bar.name, "?bar");
   }
