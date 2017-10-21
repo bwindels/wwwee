@@ -1,5 +1,6 @@
-use http::{RequestHandler, Request, BufferResponse, FinishedBufferResponse};
+use http::{RequestHandler, Request, BufferResponse, FinishedBufferResponse, RequestResult};
 use std::io::Write;
+use std::io;
 
 pub struct HelloWorld {
   
@@ -12,27 +13,27 @@ impl HelloWorld {
 }
 
 impl RequestHandler for HelloWorld {
-  fn read_headers(&mut self, req: &Request) -> Option<FinishedBufferResponse> {
+  fn read_headers(&mut self, req: &Request) -> io::Result<Option<FinishedBufferResponse>> {
     let mut resp = BufferResponse::ok();
     resp.set_header("Content-Type", "text/html");
     let mut body = resp.into_body();
-    write!(body, "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body>").unwrap();
-    write!(body, "<h1>Hello World!</h1>").unwrap();
-    write!(body, "<p>You requested: <code>{} {}</code></p>", req.method(), req.url()).unwrap();
+    write!(body, "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body>")?;
+    write!(body, "<h1>Hello World!</h1>")?;
+    write!(body, "<p>You requested: <code>{} {}</code></p>", req.method(), req.url())?;
     
-    write!(body, "<p>Query parameters:</p>").unwrap();
-    write!(body, "<ul>").unwrap();
+    write!(body, "<p>Query parameters:</p>")?;
+    write!(body, "<ul>")?;
     for p in req.query_params() {
-      write!(body, "<li><code>\"{}\"</code> = <code>\"{}\"</code></li>", p.name, p.value).unwrap();
+      write!(body, "<li><code>\"{}\"</code> = <code>\"{}\"</code></li>", p.name, p.value)?;
     }
-    write!(body, "</ul>").unwrap();
+    write!(body, "</ul>")?;
     if let Some(host) = req.headers().host {
-      write!(body, "<p>With host: <code>{}</code></p>\n", host).unwrap();
+      write!(body, "<p>With host: <code>{}</code></p>\n", host)?;
     }
-    write!(body, "</body></html>").unwrap();
-    Some(body.finish())
+    write!(body, "</body></html>")?;
+    Ok(Some(body.finish()))
   }
-  fn read_body(&mut self, _: &mut [u8]) -> Option<FinishedBufferResponse> {
-    None
+  fn read_body(&mut self, _: &mut [u8]) -> io::Result<Option<FinishedBufferResponse>> {
+    Ok(None)
   }
 }

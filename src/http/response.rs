@@ -67,6 +67,10 @@ impl BufferResponse {
     BufferResponse::new(400, "Bad request")
   }
 
+  pub fn internal_server_error() -> BufferResponse {
+    BufferResponse::new(500, "Internal server error")
+  }
+
   pub fn set_header(&mut self, name: &str, value: &str) {
     write!(&mut self.buffer, "\r\n{}:{}", name, value).unwrap();
   }
