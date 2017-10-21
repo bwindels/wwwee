@@ -4,6 +4,7 @@ use super::parse_decoded::{
 };
 use super::decode::decode_and_mark_params;
 use http::RequestResult;
+use std::str;
 
 pub struct UrlEncodedParams<'a> {
   decoded_params: &'a [u8]
@@ -46,8 +47,11 @@ impl<'a> Iterator for UrlEncodedParamsIterator<'a> {
       let (value_range, value_next_idx) =
         parse_decoded_component(&before_value, ComponentKind::Value);
 
-      let name = &before_name[name_range];
-      let value = &before_value[value_range];
+      //name and value have been checked for utf8 validity beforehand
+      //in `decode_and_mark_component` so we don't
+      //have to return errors in the iterator
+      let name = unsafe{ str::from_utf8_unchecked(&before_name[name_range]) };
+      let value = unsafe{ str::from_utf8_unchecked(&before_value[value_range]) };
       (Param {name, value}, name_next_idx + value_next_idx)
     };
 
@@ -59,8 +63,8 @@ impl<'a> Iterator for UrlEncodedParamsIterator<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct Param<'a> {
-  pub name: &'a [u8],
-  pub value: &'a [u8]
+  pub name: &'a str,
+  pub value: &'a str
 }
 
 #[cfg(test)]
@@ -77,8 +81,8 @@ mod tests {
     let mut iter = params.iter();
 
     let param = iter.next().unwrap();
-    assert_eq!(param.name, b"foo");
-    assert_eq!(param.value, b"bar");
+    assert_eq!(param.name, "foo");
+    assert_eq!(param.value, "bar");
     assert!(iter.next().is_none());
   }
 
@@ -90,12 +94,12 @@ mod tests {
     let mut iter = params.iter();
 
     let first_param = iter.next().unwrap();
-    assert_eq!(first_param.name, b"foo");
-    assert_eq!(first_param.value, b"bar");
+    assert_eq!(first_param.name, "foo");
+    assert_eq!(first_param.value, "bar");
 
     let second_param = iter.next().unwrap();
-    assert_eq!(second_param.name, b"hello");
-    assert_eq!(second_param.value, b"world");
+    assert_eq!(second_param.name, "hello");
+    assert_eq!(second_param.value, "world");
 
     assert!(iter.next().is_none());
   }
@@ -108,8 +112,8 @@ mod tests {
     let mut iter = params.iter();
 
     let param = iter.next().unwrap();
-    assert_eq!(param.name, b"foo[]");
-    assert_eq!(param.value, b"bread&butter");
+    assert_eq!(param.name, "foo[]");
+    assert_eq!(param.value, "bread&butter");
     assert_eq!(iter.next(), None);
   }
 
@@ -121,12 +125,12 @@ mod tests {
     let mut iter = params.iter();
 
     let param = iter.next().unwrap();
-    assert_eq!(param.name, b"foo[]");
-    assert_eq!(param.value, b"bread&butter");
+    assert_eq!(param.name, "foo[]");
+    assert_eq!(param.value, "bread&butter");
 
     let param = iter.next().unwrap();
-    assert_eq!(param.name, b"===");
-    assert_eq!(param.value, b"&&&");
+    assert_eq!(param.name, "===");
+    assert_eq!(param.value, "&&&");
     
     assert_eq!(iter.next(), None);
   }
@@ -141,16 +145,16 @@ mod tests {
       let mut iter = params.iter();
       
       let param = iter.next().unwrap();
-      assert_eq!(param.name, b"foo[]");
-      assert_eq!(param.value, b"bar");
+      assert_eq!(param.name, "foo[]");
+      assert_eq!(param.value, "bar");
 
       let param = iter.next().unwrap();
-      assert_eq!(param.name, b"foo_len");
-      assert_eq!(param.value, b"1");
+      assert_eq!(param.name, "foo_len");
+      assert_eq!(param.value, "1");
     }
   }
 
-    #[test]
+  #[test]
   fn test_fail_on_nul() {
     let mut buffer = [0u8; 13];
     copy_str(&mut buffer, b"hello%00world");
@@ -160,6 +164,17 @@ mod tests {
     copy_str(&mut buffer, b"hello\0world");
     let result = UrlEncodedParams::decode_and_create(&mut buffer);
     assert_eq!(result.err(), Some(RequestError::UrlEncodedNul));
+  }
+
+  #[test]
+  fn test_on_invalid_utf8() {
+    let mut buffer = [0u8; 16];
+    copy_str(&mut buffer, b"hello%C2%20world");
+    let result = UrlEncodedParams::decode_and_create(&mut buffer);
+    assert_eq!(result.err(), Some(RequestError::InvalidEncoding));
+    let mut buffer = [0xC2, 0x20];
+    let result = UrlEncodedParams::decode_and_create(&mut buffer);
+    assert_eq!(result.err(), Some(RequestError::InvalidEncoding));
   }
   
 }

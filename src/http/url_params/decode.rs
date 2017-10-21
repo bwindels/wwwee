@@ -5,6 +5,7 @@ use http::url_decode::{
 };
 use split::{BufferExt, buffer_split_mut};
 use http::error::{RequestError, RequestResult};
+use std::str::from_utf8;
 
 pub fn decode_and_mark_params(buffer: &mut [u8]) -> RequestResult<()> {
   for param in buffer_split_mut(buffer, b"&") {
@@ -22,9 +23,7 @@ fn decode_and_mark_component(mut component: &mut [u8]) -> RequestResult<()> {
 
     let decoded_len = {
       let decoded = url_decode_and_move_1(&mut component);
-      if contains_nul_char(decoded) {
-        return Err(RequestError::UrlEncodedNul)
-      }
+      validate_component(decoded)?;
       decoded.len()
     };
 
@@ -33,9 +32,7 @@ fn decode_and_mark_component(mut component: &mut [u8]) -> RequestResult<()> {
   }
   else {
     let decoded = url_decode(&mut component);
-    if contains_nul_char(decoded) {
-      return Err(RequestError::UrlEncodedNul)
-    }
+    validate_component(decoded)?;
     decoded.len()
   };
 
@@ -46,8 +43,16 @@ fn decode_and_mark_component(mut component: &mut [u8]) -> RequestResult<()> {
   return Ok( () )
 }
 
-fn contains_nul_char(buffer: &[u8]) -> bool {
-  buffer.iter().find(|&&b| b == 0u8).is_some()
+fn validate_component(buffer: &[u8]) -> RequestResult<()> {
+  if buffer.iter().find(|&&b| b == 0u8).is_some() {
+    Err(RequestError::UrlEncodedNul)
+  }
+  else if from_utf8(buffer).is_err() {
+    Err(RequestError::InvalidEncoding)
+  }
+  else {
+    Ok( () )
+  }
 }
 
 fn try_split_two_mut<'a>(buffer: &'a mut [u8], operator: &[u8]) -> (&'a mut [u8], Option<&'a mut [u8]>) {
