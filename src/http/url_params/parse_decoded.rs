@@ -54,7 +54,7 @@ fn find_next_start(buffer: &[u8], kind: ComponentKind) -> usize {
   //swallow remaining \0 chars
   let next_start_idx = buffer.iter()
     .position(|&b| b != NUL)
-    .unwrap_or(0);
+    .unwrap_or(buffer.len());
   //swallow '=' in case of 'Name', and '&' in case of 'Value', when available
   let next_start_idx = next_start_idx + buffer.get(next_start_idx).map(|&chr| {
     match (chr, kind) {
@@ -80,6 +80,13 @@ mod tests {
   }
   #[test]
   fn test_param_nul_name() {
+    let buffer = b"\0foo\0\0\0";
+    let (range, next_idx) = super::parse_decoded_component(buffer, Name);
+    assert_eq!(&buffer[range], b"foo");
+    assert_eq!(&buffer[next_idx .. ], b""); 
+  }
+  #[test]
+  fn test_param_nul_name_with_amp() {
     let buffer = b"\0foo\0\0\0&";
     let (range, next_idx) = super::parse_decoded_component(buffer, Name);
     assert_eq!(&buffer[range], b"foo");
