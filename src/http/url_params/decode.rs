@@ -6,7 +6,7 @@ use http::url_decode::{
 use split::{BufferExt, buffer_split_mut};
 use http::error::{RequestError, RequestResult};
 
-fn decode_and_mark_params(buffer: &mut [u8]) -> RequestResult<()> {
+pub fn decode_and_mark_params(buffer: &mut [u8]) -> RequestResult<()> {
   for param in buffer_split_mut(buffer, b"&") {
     let (name, value) = try_split_two_mut(param, b"=");
     decode_and_mark_component(name)?;
