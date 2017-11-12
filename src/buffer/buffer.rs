@@ -8,11 +8,6 @@ use std::ops::Range;
 use std::cell::{RefCell, RefMut};
 use std::cmp;
 use std::io;
-/*
-trait Responder {
-  fn with_buffer(size_hint: usize) -> Result<ResponseBuffer>;
-  fn with_file(head_buffer: ResponseBuffer, path: &Path, range: Option<Range>) -> Result<FileResponse>;
-}*/
 
 struct Buffer<'b> {
   array: RefMut<'b, [u8]>,
@@ -105,26 +100,5 @@ impl<'b> io::Write for Buffer<'b> {
 
   fn flush(&mut self) -> io::Result<()> {
     Ok( () )
-  }
-}
-
-type Slice4K = [u8; 4096];
-
-struct BufferPool {
-  buffers: [RefCell<Slice4K>; 10]
-}
-
-enum Error {
-  Full
-}
-
-impl BufferPool {
-  fn borrow_buffer<'b>(&'b mut self, _min_size: usize) -> Result<Buffer<'b>, Error> {
-    for b in self.buffers.iter() {
-      if let Ok(r) = b.try_borrow_mut() {
-        return Ok(Buffer::new(r));
-      }
-    }
-    return Err(Error::Full);
   }
 }
