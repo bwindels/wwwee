@@ -1,4 +1,4 @@
-use connection::{Connection, ConnectionHandler};
+use super::connection::{Connection, ConnectionHandler};
 
 use mio::*;
 use mio::net::TcpListener;

@@ -123,15 +123,3 @@ impl<'a> Buffer<'a> for FinishedBufferResponse {
     self.buffer.as_slice()
   }
 }
-
-/*
-struct ResponseHeaders {}
-struct FinishedResponse {}
-
-fn send_response() -> FinishedResponse {
-  let resp = BufferResponse::OK().set("Content-Type", "text/html");
-  let content_length = resp.reserve_header("Content-Length", 10);
-  let resp = resp.into_body();
-  write!(resp, "hello world! {} {}", req.method(), req.uri());
-  resp.finish()
-}*/

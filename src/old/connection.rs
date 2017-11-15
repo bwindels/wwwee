@@ -1,6 +1,6 @@
 use mio::{Poll, Ready, Token, PollOpt, Event};
-use mio::net::{TcpListener, TcpStream};
-use std::io::{Read, Write};
+use mio::net::TcpStream;
+use std::io::Read;
 use std::io;
 use std;
 
@@ -62,18 +62,5 @@ impl<T: ConnectionHandler> Connection<T> {
       }
     }
     false
-    /*
-        //if let Ok(txt) = std::str::from_utf8(subslice) {
-    if event.readiness().is_writable() {
-      
-    }
-
-    if self.ready_to_write && self.read_request {
-      let buf = b"HTTP/1.1 200 OK\r\n\r\nHi there";
-      self.socket.write(buf);
-      return true;
-    }
-    return false;
-    */
   }
 }
