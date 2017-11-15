@@ -1,4 +1,5 @@
-use http::{RequestHandler, Request, BufferResponse, FinishedBufferResponse, RequestResult};
+use http::Request;
+use old::http::{RequestHandler, BufferResponse, FinishedBufferResponse};
 use std::io::Write;
 use std::io;
 

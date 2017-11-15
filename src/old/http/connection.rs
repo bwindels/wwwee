@@ -1,10 +1,12 @@
-use super::{
+use http::{
   HeaderBodySplitter,
   Request,
+  RequestError
+};
+use super::{
   BufferResponse,
   Buffer,
   FinishedBufferResponse,
-  RequestError
 };
 use mio::net::TcpStream;
 use std::io::{Write, ErrorKind};
@@ -30,9 +32,7 @@ impl<T> ConnectionHandler<T> {
   }
 }
 
-impl<T: RequestHandler> ::connection::ConnectionHandler for ConnectionHandler<T> {
-
-  //type WriteJob = ResponseJob;
+impl<T: RequestHandler> ::old::connection::ConnectionHandler for ConnectionHandler<T> {
 
   fn bytes_available(&mut self, buffer: &mut [u8], socket: &mut TcpStream) -> usize {
     if let Some((header_buf, _)) = self.header_body_splitter.try_split(buffer) {

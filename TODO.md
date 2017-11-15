@@ -1,7 +1,7 @@
  - [x] implement url encoded params parsing
  - [ ] work on response code, implement this side by side with current way of handling request, so we always keep the hello world app working
 
-    - [ ] move old code to old module
+    - [x] move old code to old module
         - Connection
         - ConnectionHandler
         - http::ConnectionHandler
