@@ -68,7 +68,7 @@ impl<D: DerefMut<Target=[u8]>> Buffer<D> {
     &mut self.slice[.. self.used_len]
   }
 
-  pub fn write_into<R: io::Read>(&mut self, reader: &mut R) -> io::Result<usize> {
+  pub fn read_from<R: io::Read>(&mut self, reader: &mut R) -> io::Result<usize> {
     let result = {
       let remaining_buffer = &mut self.slice[self.used_len ..];
       reader.read(remaining_buffer)
