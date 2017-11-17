@@ -5,18 +5,18 @@
 
 use std::ptr;
 use std::ops::Range;
-use std::cell::{RefCell, RefMut};
+use std::cell::RefMut;
 use std::cmp;
 use std::io;
 
-struct Buffer<'b> {
-  array: RefMut<'b, [u8]>,
+pub struct Buffer<'b> {
+  array: RefMut<'b, &'b mut [u8]>,
   used_len: usize
 }
 
 impl<'b> Buffer<'b> {
 
-  pub fn new(slice: RefMut<'b, [u8]>) -> Buffer {
+  pub fn from_slice(slice: RefMut<'b, &'b mut [u8]>) -> Buffer {
     Buffer { array: slice, used_len: 0}
   }
 

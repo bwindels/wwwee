@@ -3,6 +3,7 @@ mod split;
 mod old;
 mod http;
 mod app;
+mod buffer;
 #[cfg(test)]
 mod test_helpers;
 
