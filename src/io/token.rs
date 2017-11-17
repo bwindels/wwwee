@@ -1,27 +1,40 @@
-type ConnectionToken = u32;
+type ConnectionId = u32;
 #[cfg(target_pointer_width = "64")]
 type AsyncToken = u32;
 #[cfg(target_pointer_width = "32")]
 type AsyncToken = u8;
 
 #[cfg(target_pointer_width = "64")]
-fn split_token(token: usize) -> (ConnectionToken, AsyncToken) {
-  let connection_idx = token >> 32;
-  let async_handle_idx = token & 0xFFFFFFFF;
-  (connection_idx, async_handle_idx)
+fn split_token(token: usize) -> (ConnectionId, AsyncToken) {
+  let conn_id = (token >> 32) as u32;
+  let async_token = (token & 0xFFFFFFFF) as u32;
+  (conn_id, async_token)
 }
 #[cfg(target_pointer_width = "32")]
-fn split_token(token: usize) -> (ConnectionToken, AsyncToken) {
-  let connection_idx = token >> 8;
-  let async_handle_idx = token & 0xFF;
-  (connection_idx, async_handle_idx)
+fn split_token(token: usize) -> (ConnectionId, AsyncToken) {
+  let conn_id = token >> 8;
+  let async_token = token & 0xFF;
+  (conn_id, async_token)
 }
 
 #[cfg(target_pointer_width = "64")]
-fn create_token(conn_token: ConnectionToken, async_token: AsyncToken) -> usize {
-  async_token as usize & ((conn_token as usize) << 32)
+fn create_token(conn_id: ConnectionId, async_token: AsyncToken) -> usize {
+  (async_token as usize) | ((conn_id as usize) << 32)
 }
 #[cfg(target_pointer_width = "32")]
-fn create_token(conn_token: ConnectionToken, async_token: AsyncToken) -> usize {
-  async_token as usize & ((conn_token as usize) << 24)
+fn create_token(conn_id: ConnectionId, async_token: AsyncToken) -> usize {
+  (async_token as usize) | ((conn_id as usize) << 24)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{create_token, split_token};
+
+  #[test]
+  fn test_split() {
+    let token : usize = create_token(5, 2);
+    let (conn_id, async_token) = split_token(token);
+    assert_eq!(conn_id, 5);
+    assert_eq!(async_token, 2);
+  }
 }

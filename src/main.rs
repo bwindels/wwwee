@@ -4,6 +4,7 @@ mod old;
 mod http;
 mod app;
 mod buffer;
+mod io;
 #[cfg(test)]
 mod test_helpers;
 
