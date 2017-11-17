@@ -5,7 +5,7 @@
         - Connection
         - ConnectionHandler
         - http::ConnectionHandler
-    - [ ] implement buffer management
+    - [x] implement buffer management
     - [ ] write second Server impl that
           - splits Token in (ConnectionToken, AsyncSourceToken)
           - uses ConnectionToken as index in array of Option<H: io::Handler>
