@@ -63,7 +63,7 @@ impl<'a> BufferPool<'a> {
     })
   }
 
-  pub fn borrow_buffer(&'a self, size_hint: usize) -> Result<Buffer<'a>, BorrowError> {
+  pub fn borrow_buffer(&'a self, size_hint: usize) -> Result<Buffer<RefMut<'a, [u8]>>, BorrowError> {
     let cat_index = self.categories.iter().position(|cat| cat.size >= size_hint);
     if let Some(cat_index) = cat_index {
       let categories_before = &self.categories[0 .. cat_index];
