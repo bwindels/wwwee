@@ -69,14 +69,18 @@ impl<'a> BufferPool<'a> {
       let categories_before = &self.categories[0 .. cat_index];
       let amount_before = categories_before.iter().fold(0, |t, cat| t + cat.amount);
       let big_enough_slots = &self.slots[amount_before..];
+      
       let slice_option = big_enough_slots.iter().filter_map(|slot| {
         slot.try_borrow_mut().ok()
-      }).nth(0); 
-      slice_option.map(|slice_refmut_ref| {
+      }).nth(0);
+
+      let buffer_option = slice_option.map(|slice_refmut_ref| {
         let slice_refmut = RefMut::map(slice_refmut_ref,
           |slice_ref| *slice_ref);
         Buffer::from_slice(slice_refmut)
-      }).ok_or(BorrowError::Depleted)
+      });
+      
+      buffer_option.ok_or(BorrowError::Depleted)
     }
     else {
       let largest_size = self.categories.iter().last().unwrap().size;
