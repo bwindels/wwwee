@@ -190,6 +190,13 @@ mod tests {
   }
 
   #[test]
+  fn test_size_beyond_largest() {
+    let pool = test_pool();
+    let toolarge = {pool.borrow_buffer(LARGE_SIZE + 1)};
+    assert_eq!(toolarge.err(), Some(BorrowError::BeyondLargest(LARGE_SIZE)));
+  }
+
+  #[test]
   fn test_unaligned_sizes() {
     let pool = BufferPool::new(
       40,
