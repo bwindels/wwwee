@@ -185,4 +185,19 @@ mod tests {
     buffer.keep(6..11, 4);
     assert_eq!(buffer.as_slice(), b"hellworld");
   }
+
+  #[test]
+  fn test_reuse_slice() {
+    let mut array = [0u8; 20];
+    {
+      let mut buffer = Buffer::from_slice(&mut array[..]);
+      write!(buffer, "hello world").unwrap();
+    }
+    {
+      let mut buffer = Buffer::from_slice(&mut array[..]);
+      assert_eq!(buffer.as_slice(), b"");
+      write!(buffer, "crazy").unwrap();
+    }
+    assert_eq!(array.as_ref(), b"crazy world\0\0\0\0\0\0\0\0\0");
+  }
 }
