@@ -1,8 +1,3 @@
-//we could use the size_hint to pick from pools with different sizes.
-//for example small errors could use a small hint and we could have a pool
-//with buffers of only 256 bytes in which this response would fit.
-//Then those reponse buffers would not be taken for actual correct responses created by handlers.
-
 use std::ptr;
 use std::ops::Range;
 use std::cmp;
