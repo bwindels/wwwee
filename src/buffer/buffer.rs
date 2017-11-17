@@ -9,14 +9,14 @@ use std::cell::RefMut;
 use std::cmp;
 use std::io;
 
-pub struct Buffer<'b> {
-  array: RefMut<'b, &'b mut [u8]>,
+pub struct Buffer<'a> {
+  array: RefMut<'a, [u8]>,
   used_len: usize
 }
 
-impl<'b> Buffer<'b> {
+impl<'a> Buffer<'a> {
 
-  pub fn from_slice(slice: RefMut<'b, &'b mut [u8]>) -> Buffer {
+  pub fn from_slice(slice: RefMut<'a, [u8]>) -> Buffer {
     Buffer { array: slice, used_len: 0}
   }
 
@@ -58,11 +58,11 @@ impl<'b> Buffer<'b> {
     self.used_len
   }
 
-  pub fn as_slice<'a>(&'a self) -> &'a [u8] {
+  pub fn as_slice(&'a self) -> &'a [u8] {
     &self.array[.. self.used_len]
   }
 
-  pub fn as_slice_mut<'a>(&'a mut self) -> &'a [u8] {
+  pub fn as_mut_slice(&'a mut self) -> &'a [u8] {
     &mut self.array[.. self.used_len]
   }
 
@@ -79,7 +79,7 @@ impl<'b> Buffer<'b> {
   }
 }
 
-impl<'b> io::Write for Buffer<'b> {
+impl<'a> io::Write for Buffer<'a> {
   fn write(&mut self, src: &[u8]) -> io::Result<usize> {
     let len = cmp::min(self.remaining(), src.len());
     let dst = &mut self.array[self.used_len ..];
