@@ -227,4 +227,26 @@ mod tests {
     );
     assert_eq!(pool.err(), Some(CategoryError::Unsorted));
   }
+
+  #[test]
+  fn test_buffer_reuse() {
+    let pool = BufferPool::new(
+      ALIGNMENT,
+      Category {size: SMALL_SIZE, amount: 1},
+      Category {size: LARGE_SIZE, amount: 0}
+    ).unwrap();
+    let addr = {
+      let buffer = pool.borrow_buffer(SMALL_SIZE);
+      assert!(buffer.is_ok());
+      let buffer = buffer.unwrap();
+      buffer.as_slice().as_ptr() as usize
+    };
+    {
+      let buffer = pool.borrow_buffer(SMALL_SIZE);
+      assert!(buffer.is_ok());
+      let buffer = buffer.unwrap();
+      let new_addr = buffer.as_slice().as_ptr() as usize;
+      assert_eq!(addr, new_addr);
+    }
+  }
 }
