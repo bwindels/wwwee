@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{RefCell, RefMut};
 use std::slice;
 use std::vec::Vec;
 use super::buffer::Buffer;
@@ -13,16 +13,6 @@ enum BorrowError {
 enum CategoryError {
   Unaligned(usize),
   Unsorted
-}
-
-fn align_ptr(offset: *mut u8, alignment: usize) -> *mut u8 {
-  let remainder = offset as usize % alignment;
-  if remainder == 0 {
-    offset
-  }
-  else {
-    unsafe { offset.offset((alignment - remainder) as isize) }
-  }
 }
 
 struct Category {
@@ -54,10 +44,17 @@ impl<'a> BufferPool<'a> {
     let total_amount = categories.iter().fold(0, |t, cat| t + cat.amount);
     let mut backing_store = Vec::with_capacity(total_size + alignment);
     let mut slots = Vec::with_capacity(total_amount);
-    let start_ptr = backing_store.as_mut_ptr();
-    let aligned_start_ptr = align_ptr(start_ptr, alignment);
+    let backing_slice : &'a mut [u8] = unsafe { // cast lifetime
+      slice::from_raw_parts_mut(
+        backing_store.as_mut_ptr(),
+        backing_store.capacity())
+    };
+    let skip_aligment_amount = alignment - (backing_slice.as_ptr() as usize % alignment);
+    let aligned_slice = &mut backing_slice[skip_aligment_amount ..];
 
-    Self::fill_slots(aligned_start_ptr, &mut slots, &categories);
+    let remaining_size = Self::fill_slots(aligned_slice, &mut slots, &categories);
+    
+    assert_eq!(alignment - skip_aligment_amount, remaining_size);
 
     Ok(BufferPool {
       backing_store,
@@ -72,10 +69,14 @@ impl<'a> BufferPool<'a> {
       let categories_before = &self.categories[0 .. cat_index];
       let amount_before = categories_before.iter().fold(0, |t, cat| t + cat.amount);
       let big_enough_slots = &self.slots[amount_before..];
-      let slice_ref = big_enough_slots.iter().filter_map(|slot| {
+      let slice_option = big_enough_slots.iter().filter_map(|slot| {
         slot.try_borrow_mut().ok()
       }).nth(0); 
-      slice_ref.map(|s| Buffer::from_slice(s)).ok_or(BorrowError::Depleted)
+      slice_option.map(|slice_refmut_ref| {
+        let slice_refmut = RefMut::map(slice_refmut_ref,
+          |slice_ref| *slice_ref);
+        Buffer::from_slice(slice_refmut)
+      }).ok_or(BorrowError::Depleted)
     }
     else {
       let largest_size = self.categories.iter().last().unwrap().size;
@@ -83,18 +84,19 @@ impl<'a> BufferPool<'a> {
     }
   }
 
-  fn fill_slots(aligned_start_ptr: *mut u8,
+  fn fill_slots(aligned_slice: &'a mut [u8],
                 slots: &mut Vec<RefCell<&'a mut [u8]>>,
-                categories: &[Category])
+                categories: &[Category]) -> usize
   {
     let buffer_sizes = categories.iter().flat_map(|cat| {
       (0..cat.amount).map(move |_| cat.size)
     });
-    buffer_sizes.fold(aligned_start_ptr, |start_ptr, size| {
-      let slice = unsafe { slice::from_raw_parts_mut(start_ptr, size) };
+    let remaining_slice = buffer_sizes.fold(aligned_slice, |total_slice, size| {
+      let (slice, remaining_slice) = total_slice.split_at_mut(size);
       slots.push(RefCell::new(slice));
-      return unsafe { start_ptr.offset(size as isize) };
+      remaining_slice
     });
+    remaining_slice.len()
   }
 
   fn check_categories(categories: &[Category], alignment: usize) -> Option<CategoryError> {
@@ -106,8 +108,9 @@ impl<'a> BufferPool<'a> {
 
     let is_unsorted = categories.windows(2).find(|cats| {
       cats[1].size < cats[0].size
-    });
-    if is_unsorted.is_some() {
+    }).is_some();
+
+    if is_unsorted {
       return Some(CategoryError::Unsorted);
     }
     None
@@ -117,6 +120,7 @@ impl<'a> BufferPool<'a> {
 #[cfg(test)]
 mod tests {
   use super::{BufferPool, Category, BorrowError, CategoryError};
+  use std::io::Write;
 
   const ALIGNMENT: usize = 40;
   const SMALL_SIZE: usize = 40;
@@ -128,6 +132,14 @@ mod tests {
       Category {size: SMALL_SIZE, amount: 2},
       Category {size: LARGE_SIZE, amount: 2}
     ).unwrap()
+  }
+
+  #[test]
+  fn test_memory_write() {
+    let pool = test_pool();
+    let mut small = pool.borrow_buffer(SMALL_SIZE).unwrap();
+    write!(small, "hello").unwrap();
+    assert_eq!(small.as_slice(), b"hello");
   }
 
   #[test]
