@@ -5,18 +5,20 @@
 
 use std::ptr;
 use std::ops::Range;
-use std::cell::RefMut;
 use std::cmp;
 use std::io;
+use std::ops::DerefMut;
 
-pub struct Buffer<'a> {
-  array: RefMut<'a, [u8]>,
+/// guarantees that array won't be dereferenced beyond where this buffer
+/// has written, so it does not need to be cleared.
+pub struct Buffer<D> {
+  array: D,
   used_len: usize
 }
 
-impl<'a> Buffer<'a> {
+impl<D: DerefMut<Target=[u8]>> Buffer<D> {
 
-  pub fn from_slice(slice: RefMut<'a, [u8]>) -> Buffer {
+  pub fn from_slice(slice: D) -> Buffer<D> {
     Buffer { array: slice, used_len: 0}
   }
 
@@ -58,11 +60,11 @@ impl<'a> Buffer<'a> {
     self.used_len
   }
 
-  pub fn as_slice(&'a self) -> &'a [u8] {
+  pub fn as_slice<'a>(&'a self) -> &'a [u8] {
     &self.array[.. self.used_len]
   }
 
-  pub fn as_mut_slice(&'a mut self) -> &'a [u8] {
+  pub fn as_mut_slice<'a>(&'a mut self) -> &'a [u8] {
     &mut self.array[.. self.used_len]
   }
 
@@ -79,7 +81,7 @@ impl<'a> Buffer<'a> {
   }
 }
 
-impl<'a> io::Write for Buffer<'a> {
+impl<D: DerefMut<Target=[u8]>> io::Write for Buffer<D> {
   fn write(&mut self, src: &[u8]) -> io::Result<usize> {
     let len = cmp::min(self.remaining(), src.len());
     let dst = &mut self.array[self.used_len ..];
