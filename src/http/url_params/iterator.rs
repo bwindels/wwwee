@@ -141,7 +141,7 @@ mod tests {
     copy_str(&mut buffer, b"foo%5b%5d=bar&foo_len=1");
     let params = UrlEncodedParams::decode_and_create(&mut buffer).unwrap();
 
-    for i in 0 .. 2 {
+    for _ in 0 .. 2 {
       let mut iter = params.iter();
       
       let param = iter.next().unwrap();

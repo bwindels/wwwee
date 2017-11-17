@@ -1,4 +1,4 @@
-use split::{buffer_split_mut, BufferExt};
+use split::{buffer_split_mut};
 use http::{RequestResult, RequestError, url_decode, UrlEncodedParams};
 use std::ascii::AsciiExt;
 use http::str::{
@@ -11,7 +11,7 @@ pub struct HttpVersion {
 }
 
 impl HttpVersion {
-  fn parse(version: &str) -> RequestResult<HttpVersion> {
+  fn parse(_version: &str) -> RequestResult<HttpVersion> {
     Err(RequestError::InvalidHeader)
   }
 }
