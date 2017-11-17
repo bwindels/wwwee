@@ -104,3 +104,85 @@ impl<D: DerefMut<Target=[u8]>> io::Write for Buffer<D> {
     Ok( () )
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::Buffer;
+  use std::io::Write;
+  use std::io;
+
+  #[test]
+  fn test_write() {
+    let mut array = [0u8; 40];
+    let mut buffer = Buffer::from_slice(&mut array[..]);
+    assert_eq!(buffer.as_slice(), b"");
+    write!(buffer, "hello {}", 1).unwrap();
+    assert_eq!(buffer.as_slice(), b"hello 1");
+  }
+
+  #[test]
+  fn test_write_too_large() {
+    let mut array = [0u8; 4];
+    let mut buffer = Buffer::from_slice(&mut array[..]);
+    let res = write!(buffer, "hello");
+    assert!(res.is_err());
+    assert_eq!(buffer.as_slice(), b"hell");
+    assert_eq!(buffer.len(), 4);
+    assert_eq!(buffer.remaining(), 0);
+  }
+
+  #[test]
+  fn test_write_full() {
+    let mut array = [0u8; 4];
+    let mut buffer = Buffer::from_slice(&mut array[..]);
+    write!(buffer, "hell").unwrap();
+    let res = write!(buffer, "o");
+    assert_eq!(res.err().map(|err| err.kind()), Some(io::ErrorKind::WriteZero));
+    assert_eq!(buffer.len(), 4);
+    assert_eq!(buffer.remaining(), 0);
+  }
+
+  #[test]
+  fn test_len_remaining() {
+    let mut array = [0u8; 10];
+    let mut buffer = Buffer::from_slice(&mut array[..]);
+    assert_eq!(buffer.len(), 0);
+    assert_eq!(buffer.remaining(), 10);
+    write!(buffer, "foo").unwrap();
+    assert_eq!(buffer.len(), 3);
+    assert_eq!(buffer.remaining(), 7);
+  }
+
+  #[test]
+  fn test_read_from() {
+    let data = b"hello world";
+    let mut array = [0u8; 5];
+    let mut buffer = Buffer::from_slice(&mut array[..]);
+    let res = buffer.read_from(&mut data.as_ref());
+    assert_eq!(res.ok(), Some(5));
+    assert_eq!(buffer.remaining(), 0);
+    assert_eq!(buffer.len(), 5);
+    assert_eq!(buffer.as_slice(), b"hello");
+  }
+  
+  #[test]
+  fn test_shrink() {
+    let mut array = [0u8; 5];
+    let mut buffer = Buffer::from_slice(&mut array[..]);
+    write!(buffer, "hello").unwrap();
+    assert_eq!(buffer.len(), 5);
+    assert_eq!(buffer.shrink(4), 4);
+    assert_eq!(buffer.as_slice(), b"hell");
+    assert_eq!(buffer.shrink(10), 4);
+    assert_eq!(buffer.as_slice(), b"hell");
+  }
+
+  #[test]
+  fn test_keep() {
+    let mut array = [0u8; 20];
+    let mut buffer = Buffer::from_slice(&mut array[..]);
+    write!(buffer, "hello world").unwrap();
+    buffer.keep(6..11, 4);
+    assert_eq!(buffer.as_slice(), b"hellworld");
+  }
+}
