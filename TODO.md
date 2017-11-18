@@ -6,7 +6,7 @@
         - ConnectionHandler
         - http::ConnectionHandler
     - [x] implement buffer management
-    - [ ] write second Server impl that
+    - [x] write second Server impl that
           - splits Token in (ConnectionToken, AsyncSourceToken)
           - uses ConnectionToken as index in array of Option<H: io::Handler>
           - passes Context wrapper around Poll and only expose AsyncSourceToken to add more fd's

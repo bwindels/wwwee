@@ -5,6 +5,7 @@ mod http;
 mod app;
 mod buffer;
 mod io;
+mod server;
 #[cfg(test)]
 mod test_helpers;
 
