@@ -1,11 +1,12 @@
-use ::{AsyncToken, Context};
+use super::token::AsyncToken;
+use super::context::Context;
 
-enum OperationState<T> {
+pub enum OperationState<T> {
   Finished(T),
   InProgress
 }
 
-trait Handler<T> {
-  fn readable(&mut self, token: AsyncToken, ctx: &mut Context) -> OperationState<T>;
-  fn writeable(&mut self, token: AsyncToken, ctx: &mut Context) -> OperationState<T>;
+pub trait Handler<T> {
+  fn readable(&mut self, token: AsyncToken, ctx: &Context) -> OperationState<T>;
+  fn writable(&mut self, token: AsyncToken, ctx: &Context) -> OperationState<T>;
 }

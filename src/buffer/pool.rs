@@ -4,18 +4,18 @@ use std::vec::Vec;
 use super::buffer::Buffer;
 
 #[derive(Debug, PartialEq)]
-enum BorrowError {
+pub enum BorrowError {
   Depleted,
   BeyondLargest(usize)
 }
 
 #[derive(Debug, PartialEq)]
-enum CategoryError {
+pub enum CategoryError {
   Unaligned(usize),
   Unsorted
 }
 
-struct Category {
+pub struct Category {
   pub amount: usize,
   pub size: usize
 }
@@ -26,7 +26,7 @@ impl Category {
   }
 }
 
-struct BufferPool<'a> {
+pub struct BufferPool<'a> {
   backing_store: Vec<u8>,
   slots: Vec<RefCell<&'a mut [u8]>>,
   categories: [Category; 2]
@@ -79,7 +79,7 @@ impl<'a> BufferPool<'a> {
           |slice_ref| *slice_ref);
         Buffer::from_slice(slice_refmut)
       });
-      
+
       buffer_option.ok_or(BorrowError::Depleted)
     }
     else {
