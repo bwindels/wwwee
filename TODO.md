@@ -22,10 +22,9 @@
             - doesn't do any actual I/O, just forwards
     - [x] implement buffer responder as io::Handler<()>
     - [ ] implement http request handler as io::Handler<()>
+    - [ ] use new server/handlers from main.rs, and remove old module
     - [ ] put a trait around Context for easy unit testing of handlers
-    At this point, use new server/handlers from main.rs, and remove old module
-
-    - [ ] implement io::file::Reader
+    - [ ] implement io::handlers::file::Reader for linux
     - [ ] implement file responder as io::Handler<()> using io::file::Reader
       - set TCP_CORK on socket - http://baus.net/on-tcp_cork
     - [ ] don't error out when no response created by read_headers,
