@@ -1,5 +1,9 @@
-struct Reader {
-  buffer: RefCell<Buffer>,
+mod ffi {
+
+}
+
+struct Reader<'a> {
+  buffer: RefCell<Buffer<'a>>,
   read_operation: Option<RefMut<Buffer>>,
   file_fd: RawFd,
   event_fd: RawFd,
@@ -9,8 +13,8 @@ struct Reader {
   range_end: Option<usize>
 }
 
-impl Reader {
-  pub fn new(path: &Path, range: Option<Range<usize>>, buffer: Buffer, selector: &mut Poll, token: AsyncToken) -> Result<Reader> {
+impl<'a> Reader<'a> {
+  pub fn new(path: &Path, range: Option<Range<usize>>, buffer: Buffer<'a>, selector: &mut Poll, token: AsyncToken) -> Result<Reader> {
     let fd = libc::open(path, O_RDONLY | O_DIRECT | O_NOATIME | O_NONBLOCK)?;
     //call eventfd
     //call io_setup
@@ -33,4 +37,8 @@ impl Reader {
     //io_getevents
     //if obtained 1 event, remove read_operation borrow and return new borrow
   }
+}
+
+impl<'a> io::handler::handler for Reader<'a> {
+  
 }
