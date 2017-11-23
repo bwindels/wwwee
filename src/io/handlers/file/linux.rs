@@ -38,7 +38,3 @@ impl<'a> Reader<'a> {
     //if obtained 1 event, remove read_operation borrow and return new borrow
   }
 }
-
-impl<'a> io::handler::handler for Reader<'a> {
-  
-}
