@@ -20,9 +20,9 @@
             - while reading response keeps track whether socket became readable
             - reregister for only writeable events on AsyncSourceToken 0 after switching to response?
             - doesn't do any actual I/O, just forwards
-    - [ ] implement buffer responder as io::Handler<()>
+    - [x] implement buffer responder as io::Handler<()>
     - [ ] implement http request handler as io::Handler<()>
-
+    - [ ] put a trait around Context for easy unit testing of handlers
     At this point, use new server/handlers from main.rs, and remove old module
 
     - [ ] implement io::file::Reader
