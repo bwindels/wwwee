@@ -14,14 +14,6 @@ use io::{
   AsyncToken};
 use buffer::pool::BufferPool;
 
-/*
-    /*let buffer_pool = BufferPool::new(
-      4 * 1024,
-      Category {amount: CONNECTION_COUNT, size:   4 * 1014},
-      Category {amount:               20, size: 400 * 1024}
-    ).unwrap();*/
-*/
-
 pub const CONNECTION_COUNT : usize = 100;
 const CONN_SOCKET_TOKEN : AsyncToken = 0;
 const SERVER_TOKEN : Token = Token(0);
