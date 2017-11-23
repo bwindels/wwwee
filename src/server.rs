@@ -4,9 +4,14 @@ use mio::net::{TcpListener, TcpStream};
 use std::net::SocketAddr;
 use std::io;
 use std::mem;
-use io::token::{create_token, split_token, ConnectionId, AsyncToken};
-use io::handler::{OperationState, Handler};
-use io::context::Context;
+use io::{
+  OperationState,
+  Handler,
+  Context,
+  create_token,
+  split_token,
+  ConnectionId,
+  AsyncToken};
 use buffer::pool::BufferPool;
 
 /*

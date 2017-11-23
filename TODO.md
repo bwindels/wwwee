@@ -11,7 +11,7 @@
           - uses ConnectionToken as index in array of Option<H: io::Handler>
           - passes Context wrapper around Poll and only expose AsyncSourceToken to add more fd's
 
-    - [ ] implement RequestResponseConnection
+    - [/] implement RequestResponseConnection
             RequestResponseConnection has an
             enum State {
               Request(Q: io::Handler<S: io::Handler>)

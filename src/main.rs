@@ -6,6 +6,7 @@ mod app;
 mod buffer;
 mod io;
 mod server;
+mod query_connection;
 #[cfg(test)]
 mod test_helpers;
 
