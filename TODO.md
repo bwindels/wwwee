@@ -37,8 +37,11 @@
  - [ ] implement cross-request state
  - [ ] implement cross-application state based on configuration dictionary to support things like persistent sqlite handle
  - security
-   - [ ] TLS - https://bearssl.org/
-      - [ ] first locally stored certificates
+   - [ ] Basic TLS using https://bearssl.org/
+     
+     Start out with fixed record size, not reusing connections, hardcoded cert ...
+      - [ ] make TLS performant, see https://istlsfastyet.com/
+      - [ ] locally stored certificates
       - [ ] lets encrypt supported in server, implement ACME protocol
         - [ ] working https client for this to call lets encrypt api
           - [ ] need http client support
