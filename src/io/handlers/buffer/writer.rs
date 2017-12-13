@@ -14,9 +14,9 @@ impl<'a, W: Write> BufferWriter<'a, W> {
   }
 }
 
-impl<'a, W: Write> Handler<usize> for BufferWriter<'a, W> {
+impl<'a: 'c, 'c, C: Context<'a>, W: Write> Handler<'a, 'c, C, usize> for BufferWriter<'a, W> {
 
-  fn writable(&mut self, _: AsyncToken, _: &Context) -> OperationState<usize> {
+  fn writable(&mut self, _: AsyncToken, _: &'c C) -> OperationState<usize> {
     let slice_to_write = &self.buffer.as_slice()[self.bytes_written ..];
     match self.writer.write(slice_to_write) {
       Ok(bytes_written) => {

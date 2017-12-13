@@ -1,4 +1,3 @@
-
 use mio::{Poll, Event, Events, Token, Ready, PollOpt};
 use mio::net::{TcpListener, TcpStream};
 use std::net::SocketAddr;
@@ -36,12 +35,17 @@ pub struct Server<'a, T, F> {
   buffer_pool: &'a BufferPool<'a>
 }
 
-impl<'a, T, F> Server<'a, T, F> where T: Handler<()>, F: Fn(TcpStream) -> T {
-  pub fn new(addr: SocketAddr, handler_creator: F, buffer_pool: &'a BufferPool<'a>) -> io::Result<Server<'a, T, F>> {
+impl<'a: 'b, 'b, T, F> Server<'a, T, F>
+  where T: Handler<'a, 'b, ::io::context::mio::Context<'a, 'b>, ()>,
+        F: Fn(TcpStream, &Context) -> io::Result<T> 
+{
+  pub fn new(addr: SocketAddr, handler_creator: F, buffer_pool: &'a BufferPool<'a>)
+    -> io::Result<Server<'a, T, F>>
+  {
     let server_socket = TcpListener::bind(&addr)?;
     let poll = Poll::new()?;
     // Start listening for incoming connections
-    poll.register(&server_socket, SERVER_TOKEN, Ready::readable(),
+    poll.register(&server_socket, SERVER_TOKEN, Ready::readable() | Ready::writable(),
       PollOpt::edge())?;
 
     let connections = initialize_connections();
@@ -55,12 +59,17 @@ impl<'a, T, F> Server<'a, T, F> where T: Handler<()>, F: Fn(TcpStream) -> T {
     })
   }
 
-  pub fn start(&mut self) -> io::Result<()> {
+  pub fn start(&'b mut self) -> io::Result<()> {
     let mut events = Events::with_capacity(self.connections.len());
     loop {
       self.poll.poll(&mut events, None)?;
 
-      for event in events.iter() {
+      self.process_events(&events);
+    }
+  }
+
+  fn process_events(&'b mut self, events: &Events) {
+    for event in events.iter() {
         if event.token() == SERVER_TOKEN {
           if let Ok((socket, _)) = self.server_socket.accept() {
             self.register_connection(socket);
@@ -72,14 +81,13 @@ impl<'a, T, F> Server<'a, T, F> where T: Handler<()>, F: Fn(TcpStream) -> T {
           }
         }
       }
-    }
   }
 
-  fn handle_event(&mut self, event: &Event) -> Option<usize> {
+  fn handle_event(&'b mut self, event: &Event) -> Option<usize> {
     let (conn_id, async_token) = split_token(event.token().0);
     let conn_idx = (conn_id - 1) as usize;
     if let Some(ref mut handler) = self.connections[conn_idx] {
-      let ctx = Context::new(&self.poll, self.buffer_pool, conn_id);
+      let ctx = ::io::context::mio::Context::new(&self.poll, self.buffer_pool, conn_id);
       let r = event.readiness();
       if r.is_readable() {
         if let OperationState::Finished(_) = handler.readable(async_token, &ctx) {
@@ -95,29 +103,37 @@ impl<'a, T, F> Server<'a, T, F> where T: Handler<()>, F: Fn(TcpStream) -> T {
     None
   }
 
-  fn register_connection(&mut self, socket: TcpStream) {
+  fn register_connection(&'b mut self, socket: TcpStream) {
     if let Some(conn_idx) = self.connections
-        .iter()
-        .position(|conn| conn.is_none())
+      .iter()
+      .position(|conn| conn.is_none())
     {
       let conn_id = (conn_idx + 1) as ConnectionId;
-      let token = Token(create_token(conn_id, CONN_SOCKET_TOKEN));
-      
-      let registration_success = self.poll.register(
-        &socket,
-        token, 
-        Ready::readable() | Ready::writable(), 
-        PollOpt::edge()
-      ).is_ok();
-
-      if registration_success {
-        self.connections[conn_idx] = 
-          Some((self.handler_creator)(socket));
-        println!("added new connection with id {}", conn_id);
+      match self.create_and_register_handler(conn_id, socket) {
+        Ok(handler) => {
+          self.connections[conn_idx] = Some(handler);
+          println!("added new connection with id {}", conn_id);
+        },
+        Err(err) => {
+          println!("error while trying to register handler for connection {}: {}", conn_id, err);
+        }
       }
     }
     else {
       println!("too many connections, dropping this one");
     }
+  }
+
+  fn create_and_register_handler(&'b self, conn_id: ConnectionId, socket: TcpStream) -> io::Result<T> {
+    let token = Token(create_token(conn_id, CONN_SOCKET_TOKEN));
+    self.poll.register(
+      &socket,
+      token, 
+      Ready::readable() | Ready::writable(), 
+      PollOpt::edge()
+    )?;
+    let ctx = ::io::context::mio::Context::new(&self.poll, self.buffer_pool, conn_id);
+    let handler = (self.handler_creator)(socket, &ctx);
+    handler
   }
 }
