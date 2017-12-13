@@ -1,2 +1,2 @@
-mod buffer;
-mod file;
+pub mod buffer;
+pub mod file;

@@ -15,13 +15,13 @@ impl<T> OperationState<T> {
   }
 }
 
-pub trait Handler<T> {
+pub trait Handler<'a: 'b, 'b, C: Context<'a>, T> {
 
-  fn readable(&mut self, _token: AsyncToken, _ctx: &Context) -> OperationState<T> {
+  fn readable(&mut self, _token: AsyncToken, _ctx: &'b C) -> OperationState<T> {
     OperationState::InProgress
   }
 
-  fn writable(&mut self, _token: AsyncToken, _ctx: &Context) -> OperationState<T> {
+  fn writable(&mut self, _token: AsyncToken, _ctx: &'b C) -> OperationState<T> {
     OperationState::InProgress
   }
 
