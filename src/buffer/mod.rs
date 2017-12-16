@@ -1,5 +1,2 @@
 mod buffer;
-pub mod pool;
-
-use std::cell::RefMut;
-pub type Buffer<'a> = self::buffer::Buffer<RefMut<'a, [u8]>>;
+pub use self::buffer::Buffer;
