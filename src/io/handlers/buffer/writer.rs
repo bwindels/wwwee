@@ -1,38 +1,38 @@
 use buffer::Buffer;
-use io::{Handler, OperationState, AsyncToken, Context};
+use io::{Handler, AsyncToken, Context};
 use std::io::{Write, ErrorKind};
 
-pub struct BufferWriter<'a, W> {
-  buffer: Buffer<'a>,
+pub struct BufferWriter<W> {
+  buffer: Buffer,
   bytes_written: usize,
   writer: W
 }
 
-impl<'a, W: Write> BufferWriter<'a, W> {
-  pub fn new(buffer: Buffer<'a>, writer: W) -> BufferWriter<'a, W> {
+impl<'a, W: Write> BufferWriter<W> {
+  pub fn new(buffer: Buffer, writer: W) -> BufferWriter<W> {
     BufferWriter { buffer, writer, bytes_written: 0 }
   }
 }
 
-impl<'a: 'c, 'c, C: Context<'a>, W: Write> Handler<'a, 'c, C, usize> for BufferWriter<'a, W> {
+impl<W: Write> Handler<usize> for BufferWriter<W> {
 
-  fn writable(&mut self, _: AsyncToken, _: &'c C) -> OperationState<usize> {
+  fn writable(&mut self, _: AsyncToken, _: &Context) -> Option<usize> {
     let slice_to_write = &self.buffer.as_slice()[self.bytes_written ..];
     match self.writer.write(slice_to_write) {
       Ok(bytes_written) => {
         self.bytes_written += bytes_written;
         if self.bytes_written == self.buffer.len() {
-          OperationState::Finished(self.bytes_written)
+          Some(self.bytes_written)
         }
         else {
-          OperationState::InProgress
+          None
         }
       },
       Err(err) => {
         match err.kind() {
           ErrorKind::Interrupted |
-          ErrorKind::WouldBlock => OperationState::InProgress,
-          _ => OperationState::Finished(self.bytes_written)
+          ErrorKind::WouldBlock => None,
+          _ => Some(self.bytes_written)
         }
       }
     }
