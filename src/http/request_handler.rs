@@ -3,11 +3,14 @@ use http::{
   Request,
   Responder,
   Response,
+  RequestError,
+  status
 };
 use buffer::Buffer;
 use io;
 use io::handlers::buffer::BufferWriter;
 use std;
+use std::io::Write;
 
 pub trait RequestHandler {
   
@@ -82,20 +85,20 @@ where
         if let Some((header_buf, _)) = 
           self.header_body_splitter.try_split(&mut read_buffer)
         {
-          // let consumed_bytes = header_buf.len();
-          let request = Request::parse(header_buf).unwrap();
+          let request = Request::parse(header_buf);
           let response = {
             let responder = ::http::response::Responder::new(ctx);
-            self.handler.read_headers(&request, &responder).unwrap().unwrap()
+            {
+              match request {
+                Ok(req) => {
+                  self.handler.read_headers(&req, &responder)
+                    .unwrap_or_else(|err| handle_io_error(err, &responder))
+                },
+                Err(err) => handle_request_error(err, &responder)
+              }
+            }
           };
-          /*let mut response = {
-              request.map(|req| {
-              self.handler.read_headers(&req, &responder)
-                .unwrap_or_else(|err| handle_io_error(err, &responder))
-            })
-            .unwrap_or_else(|err| handle_request_error(err, &responder))
-            .unwrap_or_else(|| handle_no_response(&responder))
-          };*/
+          let response = response.unwrap_or_else(|| handle_no_response());
           
           if let Some(socket) = self.socket.take() {
             let response_handler = response.into_handler(socket);
@@ -113,32 +116,31 @@ where
     }
   }
 }
-/*
+
 #[allow(unused_must_use)]
-fn handle_no_response<'a, 'b>(responder: &Responder<'b>) -> Response<'b> {
-  let mut resp = responder.respond(status::INTERNAL_SERVER_ERROR);
-  resp.set_header("Content-Type", "text/plain");
-  let mut body = resp.into_body();
-  write!(body, "No response from handler");
-  body.finish()
+fn handle_no_response() -> Response {
+  let response = b"HTTP/1.1 500\r\n\r\nNo response";
+  let mut buffer = Buffer::new();
+  buffer.write(response);
+  Response::new(buffer)
 }
 
 #[allow(unused_must_use)]
-fn handle_io_error<'a, 'b>(err: std::io::Error, responder: &Responder<'a, 'b>) -> Option<Response<'b>> {
-  let mut resp = responder.respond(status::INTERNAL_SERVER_ERROR);
+fn handle_io_error(err: std::io::Error, responder: &Responder) -> Option<Response> {
+  let mut resp = responder.respond(status::INTERNAL_SERVER_ERROR).ok()?;
   let msg = match err.kind() {
     std::io::ErrorKind::WriteZero => "Response too big for buffer",
     _ => "Unknown IO error"
   };
-  resp.set_header("Content-Type", "text/plain");
-  let mut body = resp.into_body();
+  resp.set_header("Content-Type", "text/plain").ok()?;
+  let mut body = resp.into_body().ok()?;
   write!(body, "{}", msg);
   Some(body.finish())
 }
 
 #[allow(unused_must_use)]
-fn handle_request_error<'a, 'b>(err: RequestError, responder: &Responder<'a, 'b>) -> Option<Response<'b>> {
-  let mut resp = responder.respond(status::BAD_REQUEST);
+fn handle_request_error(err: RequestError, responder: &Responder) -> Option<Response> {
+  let mut resp = responder.respond(status::BAD_REQUEST).ok()?;
   let msg = match err {
     RequestError::InvalidRequestLine => "Invalid request line",
     RequestError::InvalidHeader => "Invalid header",
@@ -146,9 +148,7 @@ fn handle_request_error<'a, 'b>(err: RequestError, responder: &Responder<'a, 'b>
     RequestError::UrlEncodedNul => "URL encoded value contains NUL character"
   };
   resp.set_header("Content-Type", "text/plain");
-  let mut body = resp.into_body();
+  let mut body = resp.into_body().ok()?;
   write!(body, "{}", msg);
   Some(body.finish())
 }
-
-*/
