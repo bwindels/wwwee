@@ -120,7 +120,6 @@ pub fn contains_percent_values(buffer: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
 
-  use std::str;
   use test_helpers;
   
   #[test]

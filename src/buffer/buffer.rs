@@ -50,7 +50,6 @@ impl io::Write for Buffer {
 mod tests {
   use super::Buffer;
   use std::io::Write;
-  use std::io;
 
   #[test]
   fn test_write() {
@@ -61,10 +60,10 @@ mod tests {
   }
 
   #[test]
-  fn test_read_from() {
+  fn test_read_available() {
     let data = b"hello";
     let mut buffer = Buffer::new();
-    let res = buffer.read_from(&mut data.as_ref());
+    let res = buffer.read_available(&mut data.as_ref());
     assert_eq!(res.ok(), Some(5));
     assert_eq!(buffer.len(), 5);
     assert_eq!(buffer.as_slice(), b"hello");
