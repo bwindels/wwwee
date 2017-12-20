@@ -1,10 +1,8 @@
 use http::{
   HeaderBodySplitter,
   Request,
-  RequestError,
   Responder,
   Response,
-  status,
 };
 use buffer::Buffer;
 use io;
@@ -13,13 +11,13 @@ use std;
 
 pub trait RequestHandler {
   
-  fn read_headers(&mut self, request: &Request, responder: &Responder)
+  fn read_headers(&mut self, _request: &Request, _responder: &Responder)
     -> std::io::Result<Option<Response>>
   {
     Ok(None)
   }
 
-  fn read_body(&mut self, body: &mut [u8], responder: &Responder)
+  fn read_body(&mut self, _body: &mut [u8], _responder: &Responder)
     -> std::io::Result<Option<Response>>
   {
     Ok(None)
@@ -31,7 +29,7 @@ pub struct Handler<T, S> {
   header_body_splitter: HeaderBodySplitter,
   handler: T,
   read_buffer: Buffer,
-  socket: S
+  socket: Option<S>
   //content_length: u64
 }
 /*
@@ -46,7 +44,7 @@ impl<T, S> Handler<T, S> {
     Handler {
       header_body_splitter: HeaderBodySplitter::new(),
       handler,
-      socket,
+      socket: Some(socket),
       read_buffer: Buffer::new()
     }
   }
@@ -61,37 +59,51 @@ where
   S: std::io::Read + std::io::Write
 {
 
-  fn readable(&mut self, _token: io::AsyncToken, ctx: &io::Context) -> Option<Option<io::handlers::buffer::BufferWriter<S>>> {
-    if let Ok(_) = self.read_buffer.read_from(&mut self.socket) {
-      let mut read_buffer = self.read_buffer.as_mut_slice();
-      if let Some((header_buf, _)) = 
-        self.header_body_splitter.try_split(&mut read_buffer)
-      {
-        // let consumed_bytes = header_buf.len();
-        let request = Request::parse(header_buf).unwrap();
-        let mut response = {
-          let responder = ::http::response::Responder::new(ctx);
-          self.handler.read_headers(&request, &responder).unwrap().unwrap()
-        };
-        /*let mut response = {
-            request.map(|req| {
-            self.handler.read_headers(&req, &responder)
-              .unwrap_or_else(|err| handle_io_error(err, &responder))
-          })
-          .unwrap_or_else(|err| handle_request_error(err, &responder))
-          .unwrap_or_else(|| handle_no_response(&responder))
-        };*/
-        
-        //let response_handler = response.into_handler(self.socket);
-        //io::OperationState::Finished(Some(response_handler))
-        None
+  fn readable(&mut self, _token: io::AsyncToken, ctx: &io::Context) -> Option<Option<io::handlers::buffer::BufferWriter<S>>>
+  {
+    let bytes_read = {
+      let read_buffer = &mut self.read_buffer;
+      self.socket.as_mut().map(|socket| {
+        read_buffer.read_from(socket)
+      })
+    };
+
+    match bytes_read {
+      None |
+      Some(Err(_)) |
+      Some(Ok(0)) => Some(None),  //drop request
+      _ => {
+        let mut read_buffer = self.read_buffer.as_mut_slice();
+        if let Some((header_buf, _)) = 
+          self.header_body_splitter.try_split(&mut read_buffer)
+        {
+          // let consumed_bytes = header_buf.len();
+          let request = Request::parse(header_buf).unwrap();
+          let response = {
+            let responder = ::http::response::Responder::new(ctx);
+            self.handler.read_headers(&request, &responder).unwrap().unwrap()
+          };
+          /*let mut response = {
+              request.map(|req| {
+              self.handler.read_headers(&req, &responder)
+                .unwrap_or_else(|err| handle_io_error(err, &responder))
+            })
+            .unwrap_or_else(|err| handle_request_error(err, &responder))
+            .unwrap_or_else(|| handle_no_response(&responder))
+          };*/
+          
+          if let Some(socket) = self.socket.take() {
+            let response_handler = response.into_handler(socket);
+            Some(Some(response_handler))
+          }
+          else {
+            Some(None) //drop request
+          }
+        }
+        else {
+          None  //in progress
+        }
       }
-      else {
-        None
-      }
-    }
-    else {
-      Some(None)
     }
   }
 }
