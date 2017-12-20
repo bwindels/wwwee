@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 mod split;
-mod old;
 mod http;
 mod app;
 mod buffer;
