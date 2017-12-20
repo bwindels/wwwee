@@ -14,15 +14,15 @@ impl<'a, W: Write> BufferWriter<W> {
   }
 }
 
-impl<W: Write> Handler<usize> for BufferWriter<W> {
+impl<W: Write> Handler<()> for BufferWriter<W> {
 
-  fn writable(&mut self, _: AsyncToken, _: &Context) -> Option<usize> {
+  fn writable(&mut self, _: AsyncToken, _: &Context) -> Option<()> {
     let slice_to_write = &self.buffer.as_slice()[self.bytes_written ..];
     match self.writer.write(slice_to_write) {
       Ok(bytes_written) => {
         self.bytes_written += bytes_written;
         if self.bytes_written == self.buffer.len() {
-          Some(self.bytes_written)
+          Some( () )
         }
         else {
           None
@@ -32,7 +32,7 @@ impl<W: Write> Handler<usize> for BufferWriter<W> {
         match err.kind() {
           ErrorKind::Interrupted |
           ErrorKind::WouldBlock => None,
-          _ => Some(self.bytes_written)
+          _ => Some( () )
         }
       }
     }

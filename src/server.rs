@@ -34,7 +34,7 @@ pub struct Server<T, F> {
 
 impl<T, F> Server<T, F>
   where T: Handler<()>,
-        F: Fn(TcpStream) -> io::Result<T>
+        F: Fn(TcpStream) -> T
 {
   pub fn new(addr: SocketAddr, handler_creator: F)
     -> io::Result<Server<T, F>>
@@ -129,6 +129,6 @@ impl<T, F> Server<T, F>
       PollOpt::edge()
     )?;
     let handler = (self.handler_creator)(socket);
-    handler
+    Ok(handler)
   }
 }

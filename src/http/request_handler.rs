@@ -71,7 +71,10 @@ where
     match bytes_read {
       None |
       Some(Err(_)) |
-      Some(Ok(0)) => Some(None),  //drop request
+      Some(Ok(0)) => {
+        println!("dropping request because error while reading socket: {:?}", bytes_read);
+        Some(None)   //drop request
+      },
       _ => {
         let mut read_buffer = self.read_buffer.as_mut_slice();
         if let Some((header_buf, _)) = 
@@ -97,6 +100,7 @@ where
             Some(Some(response_handler))
           }
           else {
+            println!("dropping request because could not take socket out of request handler");
             Some(None) //drop request
           }
         }
