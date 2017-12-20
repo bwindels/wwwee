@@ -18,7 +18,7 @@ impl Buffer {
     self.vec.as_slice()
   }
 
-  pub fn as_mut_slice<'a>(&'a mut self) -> &'a [u8] {
+  pub fn as_mut_slice<'a>(&'a mut self) -> &'a mut [u8] {
     self.vec.as_mut_slice()
   }
 
