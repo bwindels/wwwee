@@ -1,5 +1,4 @@
-use http::Request;
-use old::http::{RequestHandler, BufferResponse, FinishedBufferResponse};
+use http;
 use std::io::Write;
 use std::io;
 
@@ -13,11 +12,11 @@ impl HelloWorld {
   }
 }
 
-impl RequestHandler for HelloWorld {
-  fn read_headers(&mut self, req: &Request) -> io::Result<Option<FinishedBufferResponse>> {
-    let mut resp = BufferResponse::ok();
-    resp.set_header("Content-Type", "text/html");
-    let mut body = resp.into_body();
+impl http::RequestHandler for HelloWorld {
+  fn read_headers(&mut self, req: &http::Request, responder: &http::Responder) -> io::Result<Option<http::Response>> {
+    let mut resp = responder.respond(http::OK)?;
+    resp.set_header("Content-Type", "text/html")?;
+    let mut body = resp.into_body()?;
     write!(body, "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body>")?;
     write!(body, "<h1>Hello World!</h1>")?;
     write!(body, "<p>You requested: <code>{} {}</code></p>", req.method(), req.url())?;
@@ -33,8 +32,5 @@ impl RequestHandler for HelloWorld {
     }
     write!(body, "</body></html>")?;
     Ok(Some(body.finish()))
-  }
-  fn read_body(&mut self, _: &mut [u8]) -> io::Result<Option<FinishedBufferResponse>> {
-    Ok(None)
   }
 }

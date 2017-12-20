@@ -24,7 +24,7 @@ impl<'a> Responder<'a> {
     Responder {ctx}
   }
 
-  fn respond(&self, status: Status) -> io::Result<super::HeaderWriter> {
+  pub fn respond(&self, status: Status) -> io::Result<super::HeaderWriter> {
     let buffer = Buffer::new();
     let mut response = super::HeaderWriter { buffer };
     response.write_head(status.0, status.1)?;
