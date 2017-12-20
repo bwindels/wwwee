@@ -8,7 +8,7 @@ trait Responder : Drop {
 }
 
 struct BufferResponder<'a> {
-  buffer: Buffer<'a>
+  buffer: Buffer
   bytes_written: usize
 }
 

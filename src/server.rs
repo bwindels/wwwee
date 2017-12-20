@@ -4,14 +4,12 @@ use std::net::SocketAddr;
 use std::io;
 use std::mem;
 use io::{
-  OperationState,
   Handler,
   Context,
   create_token,
   split_token,
   ConnectionId,
   AsyncToken};
-use buffer::pool::BufferPool;
 
 pub const CONNECTION_COUNT : usize = 100;
 const CONN_SOCKET_TOKEN : AsyncToken = 0;
@@ -27,20 +25,19 @@ fn initialize_connections<T>() -> [Option<T>; CONNECTION_COUNT] {
   connections
 }
 
-pub struct Server<'a, T, F> {
+pub struct Server<T, F> {
   connections: [Option<T>; CONNECTION_COUNT],
   poll: Poll,
   server_socket: TcpListener,
   handler_creator: F,
-  buffer_pool: &'a BufferPool<'a>
 }
 
-impl<'a: 'b, 'b, T, F> Server<'a, T, F>
-  where T: Handler<'a, 'b, ::io::context::mio::Context<'a, 'b>, ()>,
-        F: Fn(TcpStream, &Context) -> io::Result<T> 
+impl<T, F> Server<T, F>
+  where T: Handler<()>,
+        F: Fn(TcpStream) -> io::Result<T>
 {
-  pub fn new(addr: SocketAddr, handler_creator: F, buffer_pool: &'a BufferPool<'a>)
-    -> io::Result<Server<'a, T, F>>
+  pub fn new(addr: SocketAddr, handler_creator: F)
+    -> io::Result<Server<T, F>>
   {
     let server_socket = TcpListener::bind(&addr)?;
     let poll = Poll::new()?;
@@ -51,7 +48,6 @@ impl<'a: 'b, 'b, T, F> Server<'a, T, F>
     let connections = initialize_connections();
 
     Ok(Server {
-      buffer_pool,
       connections,
       poll,
       server_socket,
@@ -59,7 +55,7 @@ impl<'a: 'b, 'b, T, F> Server<'a, T, F>
     })
   }
 
-  pub fn start(&'b mut self) -> io::Result<()> {
+  pub fn start(&mut self) -> io::Result<()> {
     let mut events = Events::with_capacity(self.connections.len());
     loop {
       self.poll.poll(&mut events, None)?;
@@ -68,7 +64,7 @@ impl<'a: 'b, 'b, T, F> Server<'a, T, F>
     }
   }
 
-  fn process_events(&'b mut self, events: &Events) {
+  fn process_events(&mut self, events: &Events) {
     for event in events.iter() {
         if event.token() == SERVER_TOKEN {
           if let Ok((socket, _)) = self.server_socket.accept() {
@@ -83,19 +79,19 @@ impl<'a: 'b, 'b, T, F> Server<'a, T, F>
       }
   }
 
-  fn handle_event(&'b mut self, event: &Event) -> Option<usize> {
+  fn handle_event(&mut self, event: &Event) -> Option<usize> {
     let (conn_id, async_token) = split_token(event.token().0);
     let conn_idx = (conn_id - 1) as usize;
     if let Some(ref mut handler) = self.connections[conn_idx] {
-      let ctx = ::io::context::mio::Context::new(&self.poll, self.buffer_pool, conn_id);
+      let ctx = ::io::context::Context::new(&self.poll, conn_id);
       let r = event.readiness();
       if r.is_readable() {
-        if let OperationState::Finished(_) = handler.readable(async_token, &ctx) {
+        if let Some(_) = handler.readable(async_token, &ctx) {
           return Some(conn_idx);
         }
       }
       if r.is_writable() {
-        if let OperationState::Finished(_) = handler.writable(async_token, &ctx) {
+        if let Some(_) = handler.writable(async_token, &ctx) {
           return Some(conn_idx);
         }
       }
@@ -103,7 +99,7 @@ impl<'a: 'b, 'b, T, F> Server<'a, T, F>
     None
   }
 
-  fn register_connection(&'b mut self, socket: TcpStream) {
+  fn register_connection(&mut self, socket: TcpStream) {
     if let Some(conn_idx) = self.connections
       .iter()
       .position(|conn| conn.is_none())
@@ -124,7 +120,7 @@ impl<'a: 'b, 'b, T, F> Server<'a, T, F>
     }
   }
 
-  fn create_and_register_handler(&'b self, conn_id: ConnectionId, socket: TcpStream) -> io::Result<T> {
+  fn create_and_register_handler(&self, conn_id: ConnectionId, socket: TcpStream) -> io::Result<T> {
     let token = Token(create_token(conn_id, CONN_SOCKET_TOKEN));
     self.poll.register(
       &socket,
@@ -132,8 +128,7 @@ impl<'a: 'b, 'b, T, F> Server<'a, T, F>
       Ready::readable() | Ready::writable(), 
       PollOpt::edge()
     )?;
-    let ctx = ::io::context::mio::Context::new(&self.poll, self.buffer_pool, conn_id);
-    let handler = (self.handler_creator)(socket, &ctx);
+    let handler = (self.handler_creator)(socket);
     handler
   }
 }

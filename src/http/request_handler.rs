@@ -11,15 +11,15 @@ use io;
 use io::handlers::buffer::BufferWriter;
 use std;
 
-pub trait RequestHandler<'a, R: Responder<'a>> {
+pub trait RequestHandler {
   
-  fn read_headers(&mut self, request: &Request, responder: &R)
+  fn read_headers(&mut self, request: &Request, responder: &Responder)
     -> std::io::Result<Option<Response>>
   {
     Ok(None)
   }
 
-  fn read_body(&mut self, body: &mut [u8], responder: &R)
+  fn read_body(&mut self, body: &mut [u8], responder: &Responder)
     -> std::io::Result<Option<Response>>
   {
     Ok(None)
@@ -27,10 +27,10 @@ pub trait RequestHandler<'a, R: Responder<'a>> {
 
 }
 
-pub struct Handler<'a, T, S> {
+pub struct Handler<T, S> {
   header_body_splitter: HeaderBodySplitter,
   handler: T,
-  read_buffer: Buffer<'a>,
+  read_buffer: Buffer,
   socket: S
   //content_length: u64
 }
@@ -40,37 +40,37 @@ enum Stage {
   HeadersParsed(Request)
 }
 */
-impl<'a, T, S> Handler<'a, T, S> {
+impl<T, S> Handler<T, S> {
 
-  pub fn new(handler: T, socket: S, read_buffer: Buffer<'a>) -> Handler<'a, T, S> {
+  pub fn new(handler: T, socket: S) -> Handler<T, S> {
     Handler {
       header_body_splitter: HeaderBodySplitter::new(),
       handler,
       socket,
-      read_buffer
+      read_buffer: Buffer::new()
     }
   }
 }
 
-impl<'a: 'b, 'b, C: 'b + io::Context<'a>, T, S>
-  io::Handler<'a, 'b, C, Option<BufferWriter<'a, S>>> 
+impl<T, S>
+  io::Handler<Option<BufferWriter<S>>> 
 for
-  Handler<'a, T, S>
+  Handler<T, S>
 where
-  T: RequestHandler<'a, ::http::response::implementation::Responder<'b, C>>,
+  T: RequestHandler,
   S: std::io::Read + std::io::Write
 {
 
-  fn readable(&mut self, _token: io::AsyncToken, ctx: &'b C) -> io::OperationState<Option<io::handlers::buffer::BufferWriter<'a, S>>> {
+  fn readable(&mut self, _token: io::AsyncToken, ctx: &io::Context) -> Option<Option<io::handlers::buffer::BufferWriter<S>>> {
     if let Ok(_) = self.read_buffer.read_from(&mut self.socket) {
-      let read_buffer = self.read_buffer.as_mut_slice();
+      let mut read_buffer = self.read_buffer.as_mut_slice();
       if let Some((header_buf, _)) = 
         self.header_body_splitter.try_split(&mut read_buffer)
       {
         // let consumed_bytes = header_buf.len();
         let request = Request::parse(header_buf).unwrap();
         let mut response = {
-          let responder = ::http::response::implementation::Responder::new(ctx);
+          let responder = ::http::response::Responder::new(ctx);
           self.handler.read_headers(&request, &responder).unwrap().unwrap()
         };
         /*let mut response = {
@@ -84,14 +84,14 @@ where
         
         //let response_handler = response.into_handler(self.socket);
         //io::OperationState::Finished(Some(response_handler))
-        io::OperationState::InProgress
+        None
       }
       else {
-        io::OperationState::InProgress
+        None
       }
     }
     else {
-      io::OperationState::Finished(None)
+      Some(None)
     }
   }
 }
