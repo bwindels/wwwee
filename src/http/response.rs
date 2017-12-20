@@ -10,6 +10,10 @@ pub struct Response {
 }
 
 impl Response {
+  pub fn new(buffer: Buffer) -> Response {
+    Response {buffer}
+  }
+
   pub fn into_handler<W: Write>(self, writer: W) -> BufferWriter<W> {
     BufferWriter::new(self.buffer, writer)
   }

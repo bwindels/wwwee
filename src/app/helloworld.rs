@@ -20,7 +20,6 @@ impl http::RequestHandler for HelloWorld {
     write!(body, "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body>")?;
     write!(body, "<h1>Hello World!</h1>")?;
     write!(body, "<p>You requested: <code>{} {}</code></p>", req.method(), req.url())?;
-    
     write!(body, "<p>Query parameters:</p>")?;
     write!(body, "<ul>")?;
     for p in req.query_params() {
