@@ -11,7 +11,7 @@
           - uses ConnectionToken as index in array of Option<H: io::Handler>
           - passes Context wrapper around Poll and only expose AsyncSourceToken to add more fd's
 
-    - [/] implement RequestResponseConnection
+    - [x] implement RequestResponseConnection
             RequestResponseConnection has an
             enum State {
               Request(Q: io::Handler<S: io::Handler>)
@@ -21,12 +21,12 @@
             - reregister for only writeable events on AsyncSourceToken 0 after switching to response?
             - doesn't do any actual I/O, just forwards
     - [x] implement buffer responder as io::Handler<()>
-    - [ ] implement http request handler as io::Handler<()>
+    - [x] implement http request handler as io::Handler<()>
         - how to move socket to response when method gets ref to self?
         - how to structure errors, while make it easy to ? io errors
-        - buffer lifetime errors, trait for Handler needs lifetime annotations?
-    - [ ] use new server/handlers from main.rs, and remove old module
-    - [ ] put a trait around Context for easy unit testing of handlers
+        ~ buffer lifetime errors, trait for Handler needs lifetime annotations?
+    - [x] use new server/handlers from main.rs, and remove old module
+    - [~] put a trait around Context for easy unit testing of handlers
     - [ ] implement io::handlers::file::Reader for linux
     - [ ] implement file responder as io::Handler<()> using io::file::Reader
       - set TCP_CORK on socket - http://baus.net/on-tcp_cork
