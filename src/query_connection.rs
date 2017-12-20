@@ -1,4 +1,4 @@
-use io::{Handler, OperationState, AsyncToken, Context};
+use io::{Handler, AsyncToken, Context};
 
 enum Stage<Q, R> {
   Request(Q),
@@ -20,22 +20,22 @@ impl<Q, R> QueryConnection<Q, R> {
   fn handle_event<FQ, FR>(
     &mut self,
     request_forwarder: FQ,
-    response_forwarder: FR) -> OperationState<()>
+    response_forwarder: FR) -> Option<()>
   where
-      FQ: FnOnce(&mut Q) -> OperationState<Option<R>>,
-      FR: FnOnce(&mut R) -> OperationState<()>,
+      FQ: FnOnce(&mut Q) -> Option<Option<R>>,
+      FR: FnOnce(&mut R) -> Option<()>,
   {
     let (response_handler, result) = match self.stage {
       Stage::Request(ref mut handler) => {
         match request_forwarder(handler) {
-          OperationState::InProgress => {
-            (None, OperationState::InProgress)
+          None => {
+            (None, None)
           },
-          OperationState::Finished(None) => {
-            (None, OperationState::Finished( () ))
+          Some(None) => {
+            (None, Some( () ))
           },
-          OperationState::Finished(Some(response_handler)) => {
-            (Some(response_handler), OperationState::InProgress)
+          Some(Some(response_handler)) => {
+            (Some(response_handler), None)
           },
         }
       },
@@ -48,16 +48,16 @@ impl<Q, R> QueryConnection<Q, R> {
   }
 }
 
-impl<'a: 'c, 'c, C:Context<'a>, Q: Handler<'a, 'c, C, Option<R>>, R: Handler<'a, 'c, C, ()>> Handler<'a, 'c, C, ()> for QueryConnection<Q, R> {
+impl<Q: Handler<Option<R>>, R: Handler<()>> Handler<()> for QueryConnection<Q, R> {
   
-  fn readable(&mut self, token: AsyncToken, ctx: &'c C) -> OperationState<()> {
+  fn readable(&mut self, token: AsyncToken, ctx: &Context) -> Option<()> {
     self.handle_event(
       |request_handler| request_handler.readable(token, ctx),
       |response_handler| response_handler.readable(token, ctx),
     )
   }
 
-  fn writable(&mut self, token: AsyncToken, ctx: &'c C) -> OperationState<()> {
+  fn writable(&mut self, token: AsyncToken, ctx: &Context) -> Option<()> {
     self.handle_event(
       |request_handler| request_handler.writable(token, ctx),
       |response_handler| response_handler.writable(token, ctx),

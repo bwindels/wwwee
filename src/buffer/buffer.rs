@@ -7,7 +7,7 @@ pub struct Buffer {
 impl Buffer {
 
   pub fn new() -> Buffer {
-    Buffer {slice: Vec::with_capacity(4096)}
+    Buffer {vec: Vec::with_capacity(4096)}
   }
 
   pub fn len(&self) -> usize {
@@ -23,7 +23,7 @@ impl Buffer {
   }
 
   pub fn read_from<R: io::Read>(&mut self, reader: &mut R) -> io::Result<usize> {
-    reader.read_to_end(&self.vec)
+    reader.read_to_end(&mut self.vec)
   }
 }
 
