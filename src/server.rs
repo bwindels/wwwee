@@ -86,6 +86,7 @@ impl<T, F> Server<T, F>
       let ctx = Context::new(&self.poll, conn_id);
       let r = event.readiness();
       if r.is_readable() {
+        println!("handling readable event from conn_idx {:?}", conn_idx);
         if let Some(_) = handler.readable(async_token, &ctx) {
           return Some(conn_idx);
         }
@@ -95,6 +96,9 @@ impl<T, F> Server<T, F>
           return Some(conn_idx);
         }
       }
+    }
+    else {
+      println!("no handler set for event connection at index {:?}. bug?", conn_idx);
     }
     None
   }
