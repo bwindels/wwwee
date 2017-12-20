@@ -10,8 +10,22 @@ impl Buffer {
     Buffer {vec: Vec::with_capacity(4096)}
   }
 
+  pub fn clear(&mut self) {
+    self.vec.clear()
+  }
+
   pub fn len(&self) -> usize {
     self.vec.len()
+  }
+
+  pub fn capacity(&self) -> usize {
+    self.vec.capacity()
+  }
+
+  pub unsafe fn set_len(&mut self, len: usize) {
+    if len <= self.capacity() {
+      self.vec.set_len(len);
+    }
   }
 
   pub fn as_slice<'a>(&'a self) -> &'a [u8] {
@@ -57,6 +71,14 @@ mod tests {
     assert_eq!(buffer.as_slice(), b"");
     write!(buffer, "hello {}", 1).unwrap();
     assert_eq!(buffer.as_slice(), b"hello 1");
+  }
+
+  #[test]
+  fn test_clear() {
+    let mut buffer = Buffer::new();
+    write!(buffer, "hello").unwrap();
+    buffer.clear();
+    assert_eq!(buffer.as_slice(), b"");
   }
 
   #[test]
