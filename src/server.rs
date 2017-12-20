@@ -83,7 +83,7 @@ impl<T, F> Server<T, F>
     let (conn_id, async_token) = split_token(event.token().0);
     let conn_idx = (conn_id - 1) as usize;
     if let Some(ref mut handler) = self.connections[conn_idx] {
-      let ctx = ::io::context::Context::new(&self.poll, conn_id);
+      let ctx = Context::new(&self.poll, conn_id);
       let r = event.readiness();
       if r.is_readable() {
         if let Some(_) = handler.readable(async_token, &ctx) {
