@@ -64,15 +64,17 @@ where
     let bytes_read = {
       let read_buffer = &mut self.read_buffer;
       self.socket.as_mut().map(|socket| {
-        read_buffer.read_from(socket)
+        read_buffer.read_available(socket)
       })
     };
 
     match bytes_read {
+      Some(Err(err)) => {
+        println!("dropping request because error while reading socket: {:?}", err.kind());
+        Some(None)   //drop request
+      },
       None |
-      Some(Err(_)) |
       Some(Ok(0)) => {
-        println!("dropping request because error while reading socket: {:?}", bytes_read);
         Some(None)   //drop request
       },
       _ => {

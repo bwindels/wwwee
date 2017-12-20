@@ -64,7 +64,7 @@ impl BodyWriter {
   }
 
   pub fn finish(self) -> Response {
-    println!("Content-Length should be {}", self.len_before_body - self.buffer.len());
+    println!("Content-Length should be {}", self.buffer.len() - self.len_before_body);
     Response {buffer: self.buffer}
   }
 }

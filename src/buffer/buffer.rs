@@ -22,8 +22,17 @@ impl Buffer {
     self.vec.as_mut_slice()
   }
 
-  pub fn read_from<R: io::Read>(&mut self, reader: &mut R) -> io::Result<usize> {
-    reader.read_to_end(&mut self.vec)
+  pub fn read_available<R: io::Read>(&mut self, reader: &mut R) -> io::Result<usize> {
+    let len_before = self.vec.len();
+    match reader.read_to_end(&mut self.vec) {
+      Ok(bytes_read) => Ok(bytes_read),
+      Err(err) => {
+        match err.kind() {
+          io::ErrorKind::WouldBlock => Ok(self.vec.len() - len_before),
+          _ => Err(err)
+        }
+      }
+    }
   }
 }
 
