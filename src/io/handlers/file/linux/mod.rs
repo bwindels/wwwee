@@ -38,19 +38,19 @@ struct Reader {
 }
 
 impl Reader {
-  pub fn new(path: &Path, range: Option<Range<usize>>, buffer: Buffer, selector: &mut mio::Poll, token: mio::Token) -> io::Result<Reader> {
-    let path_ptr = mem::transmute::<*const u8, *const i8>(path.as_os_str().as_bytes().as_ptr());
-    let file_fd = to_result(libc::open(path_ptr,
+  pub fn new(path: &Path, range: Option<Range<usize>>, mut buffer: Buffer, selector: &mut mio::Poll, token: mio::Token) -> io::Result<Reader> {
+    let path_ptr = unsafe { mem::transmute::<*const u8, *const i8>(path.as_os_str().as_bytes().as_ptr()) };
+    let file_fd = to_result( unsafe { libc::open(path_ptr,
       libc::O_RDONLY |
       libc::O_DIRECT |
       libc::O_NOATIME |
-      libc::O_NONBLOCK))?;
+      libc::O_NONBLOCK) } )?;
     //let stat = libc::stat64 {};
     let offset = range.map(|r| r.start).unwrap_or(0);
     let range_end = range.map(|r| r.end);
 
     let io_ctx = aio::Context::setup(1)?;
-    let event_fd = to_result(libc::eventfd(0, libc::EFD_NONBLOCK))?;
+    let event_fd = to_result(unsafe { libc::eventfd(0, libc::EFD_NONBLOCK) } )?;
 
     buffer.clear();
 
@@ -115,7 +115,9 @@ impl Reader {
 
 impl Drop for Reader {
   fn drop(&mut self) {
-    libc::close(self.file_fd);
-    libc::close(self.event_fd);
+    unsafe {
+      libc::close(self.file_fd);
+      libc::close(self.event_fd);
+    }
   }
 }
