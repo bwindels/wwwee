@@ -20,7 +20,7 @@ pub struct Operation {
 
 impl Operation {
 
-  pub fn create_read(fd: RawFd, offset: usize, buffer: Buffer) -> Operation {
+  pub fn create_read(fd: RawFd, offset: usize, mut buffer: Buffer) -> Operation {
     let buffer_ptr = buffer.as_mut_slice().as_mut_ptr();
     Operation {
       iocb: ffi::iocb {
@@ -40,7 +40,7 @@ impl Operation {
     self.iocb.aio_resfd = event_fd as u32;
   }
 
-  pub fn into_read_result(self, event: &Event) -> io::Result<Buffer> {
+  pub fn into_read_result(mut self, event: &Event) -> io::Result<Buffer> {
     //check event matches this operation?
     if event.event.res < 0 {
       Err(io::Error::from_raw_os_error( - event.event.res as i32))
@@ -64,7 +64,7 @@ impl Context {
 
   pub fn setup(max_operations: u32) -> io::Result<Context> {
     let mut ctxp: ffi::aio_context_t = 0;
-    let result = ffi::io_setup(max_operations, &mut ctxp);
+    let result = unsafe { ffi::io_setup(max_operations, &mut ctxp) };
     if result == -1 {
       Err(io::Error::last_os_error())
     }
@@ -73,14 +73,16 @@ impl Context {
     }
   }
 
-  pub fn submit(&self, control_blocks: &[&ffi::iocb]) -> io::Result<usize> {
+  pub fn submit(&self, control_blocks: &mut [&ffi::iocb]) -> io::Result<usize> {
     let control_blocks_ptr = 
-      mem::transmute::<*mut &ffi::iocb, *mut *mut ffi::iocb>(control_blocks.as_mut_ptr());
-    let result = ffi::io_submit(
+      unsafe { 
+        mem::transmute::<*mut &ffi::iocb, *mut *mut ffi::iocb>(control_blocks.as_mut_ptr())
+      };
+    let result = unsafe { ffi::io_submit(
       self.ctxp,
       control_blocks.len() as i64,
       control_blocks_ptr
-    );
+    ) };
 
     if result == -1 {
       Err(io::Error::last_os_error())
