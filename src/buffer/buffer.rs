@@ -3,6 +3,8 @@ use std::ptr;
 use std::slice;
 use libc;
 
+/* TODO: borrowed slices can become invalid when resizing,
+need to find a solution that makes the borrow checker fail on this. */
 struct PageBuffer {
   page_size: usize,
   pages: usize,
