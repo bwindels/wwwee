@@ -3,7 +3,7 @@ use std::ptr;
 use std::slice;
 use libc;
 
-pub struct PageBuffer {
+struct PageBuffer {
   page_size: usize,
   pages: usize,
   ptr: *mut u8  
@@ -65,7 +65,7 @@ impl PageBuffer {
 
   fn pages_for_size(page_size: usize, min_size: usize) -> usize {
     let mut pages = min_size / page_size;
-    if (pages * page_size) < min_size {
+    if (pages * page_size) < min_size || pages == 0 {
       pages += 1;
     }
     pages
