@@ -67,7 +67,7 @@ where
     let bytes_read = {
       let read_buffer = &mut self.read_buffer;
       self.socket.as_mut().map(|socket| {
-        read_buffer.read_available(socket)
+        read_buffer.read_from(socket)
       })
     };
 
