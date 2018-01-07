@@ -73,10 +73,10 @@ impl Context {
     }
   }
 
-  pub fn submit(&self, control_blocks: &mut [&ffi::iocb]) -> io::Result<usize> {
+  pub fn submit(&self, control_blocks: &[&ffi::iocb]) -> io::Result<usize> {
     let control_blocks_ptr = 
       unsafe { 
-        mem::transmute::<*mut &ffi::iocb, *mut *mut ffi::iocb>(control_blocks.as_mut_ptr())
+        mem::transmute::<*const &ffi::iocb, *mut *mut ffi::iocb>(control_blocks.as_ptr())
       };
     let result = unsafe { ffi::io_submit(
       self.ctxp,
