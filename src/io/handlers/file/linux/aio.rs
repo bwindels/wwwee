@@ -110,21 +110,24 @@ impl Context {
     let timeout_ptr = timeout
       .map(|ref mut t| t as *mut ffi::timespec)
       .unwrap_or(ptr::null_mut());
-    let events_ptr = mem::transmute::<*mut Event, *mut ffi::io_event>(events.as_mut_ptr());
+    let events_ptr = unsafe {
+      mem::transmute::<*mut Event, *mut ffi::io_event>(events.as_mut_ptr())
+    };
 
-    let count = ffi::io_getevents(
-      self.ctxp,
-      min_events as i64,
-      events.len() as i64,
-      events_ptr,
-      timeout_ptr) as usize;
-
+    let count = unsafe {
+      ffi::io_getevents(
+        self.ctxp,
+        min_events as i64,
+        events.len() as i64,
+        events_ptr,
+        timeout_ptr) as usize
+    };
     &events[.. count]
   }
 }
 
 impl Drop for Context {
   fn drop(&mut self) {
-    ffi::io_destroy(self.ctxp);
+    unsafe { ffi::io_destroy(self.ctxp) };
   }
 }
