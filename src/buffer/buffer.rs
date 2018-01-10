@@ -29,6 +29,7 @@ impl PageBuffer {
     if ptr == libc::MAP_FAILED {
       panic!("buffer allocation of {} pages of {} bytes (total of {} bytes) using mmap failed, with error: {}", pages, page_size, size, io::Error::last_os_error());
     }
+    assert_eq!(ptr as usize % page_size, 0);
     let ptr = ptr as *mut u8;
     PageBuffer {ptr, pages, page_size}
   }
@@ -48,6 +49,7 @@ impl PageBuffer {
     if ptr == libc::MAP_FAILED {
       panic!("buffer reallocation of {} pages of {} bytes (total of {} bytes) using mremap failed, with error: {}", pages, self.page_size, new_size, io::Error::last_os_error());
     }
+    assert_eq!(ptr as usize % self.page_size, 0);
     let ptr = ptr as *mut u8;
     self.ptr = ptr;
     self.pages = pages;
