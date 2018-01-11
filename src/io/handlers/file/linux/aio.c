@@ -16,3 +16,7 @@ int io_getevents(aio_context_t ctx, long min_nr, long max_nr,
         struct io_event *events, struct timespec *timeout) {
     return syscall(__NR_io_getevents, ctx, min_nr, max_nr, events, timeout);
 }
+
+int memfd_create(const char *name, unsigned int flags) {
+  return syscall(__NR_memfd_create, name, flags);
+}
