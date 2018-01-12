@@ -19,7 +19,7 @@ enum ReadState {
   Ready(Buffer),
   Reading(aio::Operation),
   Switching,
-  EndReached
+  EndReached(Buffer)
 }
 
 pub struct Reader {
@@ -45,9 +45,7 @@ impl Reader {
     range: Option<Range<usize>>,
     buffer_size_hint: usize) -> io::Result<Reader>
   {
-    println!("path bytes: {:?}", path.as_os_str().as_bytes());
     let path_ptr = unsafe { mem::transmute::<*const u8, *const i8>(path.as_os_str().as_bytes().as_ptr()) };
-    println!("before open");
     let file_fd = OwnedFd::from_raw_fd(to_result( unsafe {
       libc::open(
         path_ptr,
@@ -57,9 +55,7 @@ impl Reader {
         libc::O_NONBLOCK
       )
     } )? as RawFd);
-    println!("got past open");
     let file_stats = stat(file_fd.as_raw_fd())?;
-    println!("got past stat");
     
     if !is_regular_file(&file_stats) {
       return Err(io::Error::new(io::ErrorKind::InvalidInput, "path does not represent a regular file"));
@@ -67,14 +63,11 @@ impl Reader {
 
     let range = normalize_range(&file_stats, range);
     let buffer = Buffer::page_sized_aligned(buffer_size(&file_stats, &range, buffer_size_hint));
-    println!("got past mmap");
     let block_size = file_stats.st_blksize as usize;
     let block_index = range.start / block_size;
 
     let io_ctx = aio::Context::setup(1)?;
-    println!("got past io_setup");
     let event_fd = OwnedFd::from_raw_fd(to_result(unsafe { libc::eventfd(0, libc::EFD_NONBLOCK) } )? as RawFd);
-    println!("got past eventfd");
 
     Ok(Reader {
       read_state: ReadState::Ready(buffer),
@@ -98,7 +91,7 @@ impl Reader {
         };
         let mut read_op = aio::Operation::create_read(
           self.file_fd.as_raw_fd(),
-          self.next_offset(),
+          self.current_offset(),
           buffer
         );
         read_op.set_event_fd(self.event_fd.as_raw_fd());
@@ -108,14 +101,15 @@ impl Reader {
       },
       ReadState::Reading(_) => Ok(true),
       ReadState::Switching => Err(io::Error::new(io::ErrorKind::Other, SWITCHING_ERROR_MSG)),
-      ReadState::EndReached => Ok(false)
+      ReadState::EndReached(_) => Ok(false)
     }
   }
 
   pub fn try_get_read_bytes<'a>(&'a mut self) -> io::Result<&'a mut [u8]> {
     self.finish_read()?;
     match self.read_state {
-      ReadState::Ready(ref mut buffer) => {
+      ReadState::Ready(ref mut buffer) |
+      ReadState::EndReached(ref mut buffer) => {
         let mut offset = 0;
 
         let start_block_idx = self.range.start / self.block_size;
@@ -129,7 +123,6 @@ impl Reader {
       },
       ReadState::Reading(_) => Err(io::Error::new(io::ErrorKind::WouldBlock, "read operation has not finished yet")),
       ReadState::Switching => Err(io::Error::new(io::ErrorKind::Other, SWITCHING_ERROR_MSG)),
-      ReadState::EndReached => Err(io::Error::new(io::ErrorKind::UnexpectedEof, "end of range was reached in last read operation")),
     }
   }
 
@@ -143,26 +136,24 @@ impl Reader {
   }
 
   pub fn deregister(&mut self, selector: &mut mio::Poll) -> io::Result<()> {
-    self.read_state = ReadState::EndReached;
     selector.deregister(
       &mio::unix::EventedFd(&self.event_fd.as_raw_fd())
     )
   }
 
-  fn next_offset(&self) -> usize {
+  fn current_offset(&self) -> usize {
     self.block_size * self.block_index
   }
 
-  fn try_move_after_read(&mut self, returned_len: usize, requested_len: usize) -> io::Result<()> {
+  fn next_block_index(&self, returned_len: usize, requested_len: usize) -> io::Result<Option<usize>> {
     if returned_len == requested_len {
-      self.block_index += returned_len / self.block_size;
-      Ok( () )
+      let next_index = self.block_index + (returned_len / self.block_size);
+      Ok( Some(next_index) )
     }
     else {
-      let total_requested_len = (self.block_index * self.block_size) + requested_len;
+      let total_requested_len = (self.block_index * self.block_size) + returned_len;
       if total_requested_len >= self.range.end {
-        self.read_state = ReadState::EndReached;
-        Ok( () )
+        Ok(None)
       }
       else {
         Err(io::Error::new(io::ErrorKind::UnexpectedEof, "didn't receive a full buffer before end of range was reached"))
@@ -184,8 +175,13 @@ impl Reader {
           }
         };
         let buffer = op.into_read_result(read_event)?;
-        self.try_move_after_read(buffer.len(), buffer.capacity())?;
-        self.read_state = ReadState::Ready(buffer);
+        match self.next_block_index(buffer.len(), buffer.capacity())? {
+          None => self.read_state = ReadState::EndReached(buffer),
+          Some(idx) => {
+            self.block_index = idx;
+            self.read_state = ReadState::Ready(buffer)
+          }
+        }
       }
     }
     Ok( () )
@@ -239,6 +235,7 @@ fn buffer_size(file_stats: &libc::stat64, range: &Range<usize>, buffer_size_hint
 mod tests {
   use super::Reader;
   use std::env;
+  use std::mem;
   use std::path::PathBuf;
   use mio;
 
@@ -251,9 +248,9 @@ mod tests {
   }
 
   #[test]
-  fn test_small_read() {
+  fn test_small_read_all() {
     const MSG : &'static [u8] = b"try reading this with direct IO";
-    let path = fixture_path("aio/small.txt").unwrap();
+    let path = fixture_path("aio/small.txt\0").unwrap();
     let mut reader = Reader::new_with_buffer_size_hint(
       path.as_path(),
       None,
@@ -270,8 +267,47 @@ mod tests {
     //wait for read operation to finish
     poll.poll(&mut events, None).unwrap();
 
-    let read_bytes = reader.try_get_read_bytes().unwrap();
-    assert_eq!(read_bytes, MSG);
+    {
+      let read_bytes = reader.try_get_read_bytes().unwrap();
+      assert_eq!(read_bytes, MSG);
+    }
+    { // since we've reached the end, the next queue should not queue
+      let is_queued = reader.try_queue_read().unwrap();
+      assert_eq!(is_queued, false);
+    }
+
+    reader.deregister(&mut poll).unwrap();
+  }
+
+  #[test]
+  fn test_u16_inc_read_all() {
+    let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
+    let mut reader = Reader::new_with_buffer_size_hint(
+      path.as_path(),
+      None,
+      100
+    ).unwrap();
+
+    let mut events = mio::Events::with_capacity(1);
+    let mut poll = mio::Poll::new().unwrap();
+    let token = mio::Token(1);
+    reader.register(&mut poll, token).unwrap();
+
+    let mut counter = 0u16;
+
+    while reader.try_queue_read().unwrap() {
+      //wait for read operation to finish
+      poll.poll(&mut events, None).unwrap();
+      let read_bytes = reader.try_get_read_bytes().unwrap();
+      for bytes in read_bytes.chunks(2) {
+        let array = [bytes[0], bytes[1]];
+        let n = unsafe { mem::transmute::<[u8;2], u16>(array) };
+        assert_eq!(n, counter);
+        counter += 1;
+      }
+    }
+
+    assert_eq!(counter, 4608);
   }
 
 }
