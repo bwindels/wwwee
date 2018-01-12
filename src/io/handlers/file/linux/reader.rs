@@ -237,55 +237,25 @@ fn buffer_size(file_stats: &libc::stat64, range: &Range<usize>, buffer_size_hint
 
 #[cfg(test)]
 mod tests {
-  use std::io;
-  use std::os::unix::prelude::*;
-  use std::fs::File;
-  use std::path::PathBuf;
-  use std::io::Write;
-  use super::super::ffi::memfd_create;
   use super::Reader;
-  use libc;
+  use std::env;
+  use std::path::PathBuf;
   use mio;
 
-  fn create_temp_file() -> io::Result<(File, PathBuf)> {
-    let fd = super::to_result(
-      unsafe { memfd_create(b"test\0".as_ptr() as *const i8, 0) }
-    )? as RawFd;
-    let pid = unsafe { libc::getpid() };
-    let mut path_str = String::new();
-    {
-      use std::fmt::Write;
-      write!(path_str, "/proc/{pid}/fd/{fd}\0", pid = pid, fd = fd).unwrap();
-    }
-
-    {
-      let mut msg = String::new();
-      {
-        use std::fmt::Write;
-        write!(msg, "opening path {}\n", path_str).unwrap();
-      }
-      unsafe {
-        libc::write(0, msg.as_str().as_ptr() as *const libc::c_void, msg.len());
-        libc::fsync(0);
-      }
-    }
-
-    let path = PathBuf::from(path_str);
-    let file = unsafe { File::from_raw_fd(fd) };
-    Ok((file, path))
+  fn fixture_path(fixture_path: &str) -> Result<PathBuf, env::VarError> {
+    let project_dir = env::var("CARGO_MANIFEST_DIR")?;
+    let mut path = PathBuf::from(project_dir);
+    path.push("test_fixtures");
+    path.push(fixture_path);
+    Ok(path)
   }
 
   #[test]
   fn test_small_read() {
-    const MSG : &'static [u8] = b"this is a small message in a file";
-
-    let (mut file,pathbuf) = create_temp_file().unwrap();
-    file.write(MSG).unwrap();
-
-    //unsafe { libc::sleep(100); }
-
+    const MSG : &'static [u8] = b"try reading this with direct IO";
+    let path = fixture_path("aio/small.txt").unwrap();
     let mut reader = Reader::new_with_buffer_size_hint(
-      pathbuf.as_path(),
+      path.as_path(),
       None,
       100
     ).unwrap();
@@ -299,11 +269,9 @@ mod tests {
     reader.register(&mut poll, token).unwrap();
     //wait for read operation to finish
     poll.poll(&mut events, None).unwrap();
-    
+
     let read_bytes = reader.try_get_read_bytes().unwrap();
     assert_eq!(read_bytes, MSG);
-
-    file.set_len(0).unwrap(); //make sure file does not get dropped/closed prematurely
   }
 
 }
