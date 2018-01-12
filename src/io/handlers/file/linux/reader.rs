@@ -106,6 +106,7 @@ impl Reader {
   }
 
   pub fn try_get_read_bytes<'a>(&'a mut self) -> io::Result<&'a mut [u8]> {
+    let read_block_idx = self.block_index;
     self.finish_read()?;
     match self.read_state {
       ReadState::Ready(ref mut buffer) |
@@ -113,13 +114,13 @@ impl Reader {
         let mut offset = 0;
 
         let start_block_idx = self.range.start / self.block_size;
-        if self.block_index == start_block_idx {
+        if read_block_idx == start_block_idx {
           offset = self.range.start % self.block_size;
         }
 
-        let len = buffer.len() - offset;
+        let end_idx = cmp::min(buffer.len(), self.range.end - (read_block_idx * self.block_size));
         
-        Ok(&mut buffer.as_mut_slice()[offset .. len])
+        Ok(&mut buffer.as_mut_slice()[offset .. end_idx])
       },
       ReadState::Reading(_) => Err(io::Error::new(io::ErrorKind::WouldBlock, "read operation has not finished yet")),
       ReadState::Switching => Err(io::Error::new(io::ErrorKind::Other, SWITCHING_ERROR_MSG)),
@@ -308,6 +309,39 @@ mod tests {
     }
 
     assert_eq!(counter, 4608);
+  }
+
+  #[test]
+  fn test_u16_inc_read_range() {
+    let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
+    let mut reader = Reader::new_with_buffer_size_hint(
+      path.as_path(),
+      Some(1000 .. 8400),
+      100
+    ).unwrap();
+
+    let mut events = mio::Events::with_capacity(1);
+    let mut poll = mio::Poll::new().unwrap();
+    let token = mio::Token(1);
+    reader.register(&mut poll, token).unwrap();
+
+    let mut counter = 500u16;
+
+    while reader.try_queue_read().unwrap() {
+      //wait for read operation to finish
+      poll.poll(&mut events, None).unwrap();
+      let read_bytes = reader.try_get_read_bytes().unwrap();
+      println!("read {} bytes from file", read_bytes.len());
+      for bytes in read_bytes.chunks(2) {
+        let array = [bytes[0], bytes[1]];
+        let n = unsafe { mem::transmute::<[u8;2], u16>(array) };
+        println!("{:?}", n);
+        assert_eq!(n, counter);
+        counter += 1;
+      }
+    }
+
+    assert_eq!(counter, 4200);
   }
 
 }
