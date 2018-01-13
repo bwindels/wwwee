@@ -263,6 +263,22 @@ mod tests {
   }
 
   #[test]
+  fn test_small_read_range() {
+    let range = 4 .. 11;
+    let msg = &SMALL_MSG[range.clone()];
+    let path = fixture_path("aio/small.txt\0").unwrap();
+    let mut reader = Reader::new_with_buffer_size_hint(
+      path.as_path(),
+      Some(range.clone()),
+      100
+    ).unwrap();
+
+    assert_eq!(reader.request_size(), msg.len());
+    let read_bytes = read_single(&mut reader);
+    assert_eq!(read_bytes, msg);
+  }
+
+  #[test]
   fn test_small_eof_all() {
     let path = fixture_path("aio/small.txt\0").unwrap();
     let mut reader = Reader::new_with_buffer_size_hint(
@@ -280,22 +296,6 @@ mod tests {
 
     let is_queued = reader.try_queue_read().unwrap();
     assert_eq!(is_queued, false);
-  }
-
-  #[test]
-  fn test_small_read_range() {
-    let range = 4 .. 11;
-    let msg = &SMALL_MSG[range.clone()];
-    let path = fixture_path("aio/small.txt\0").unwrap();
-    let mut reader = Reader::new_with_buffer_size_hint(
-      path.as_path(),
-      Some(range.clone()),
-      100
-    ).unwrap();
-
-    assert_eq!(reader.request_size(), msg.len());
-    let read_bytes = read_single(&mut reader);
-    assert_eq!(read_bytes, msg);
   }
 
   #[test]
