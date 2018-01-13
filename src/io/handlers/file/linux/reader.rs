@@ -142,6 +142,14 @@ impl Reader {
     )
   }
 
+  pub fn request_size(&self) -> usize {
+    self.range.end - self.range.start
+  }
+
+  pub fn block_size(&self) -> usize {
+    self.block_size
+  }
+
   fn current_offset(&self) -> usize {
     self.block_size * self.block_index
   }
@@ -248,6 +256,27 @@ mod tests {
     Ok(path)
   }
 
+  fn read_until_end<F: FnMut(&[u8])>(reader: &mut Reader, mut callback: F) {
+    let mut events = mio::Events::with_capacity(1);
+    let mut poll = mio::Poll::new().unwrap();
+    let token = mio::Token(1);
+    reader.register(&mut poll, token).unwrap();
+    while reader.try_queue_read().unwrap() {
+      //wait for read operation to finish
+      poll.poll(&mut events, None).unwrap();
+      let read_bytes = reader.try_get_read_bytes().unwrap();
+      callback(read_bytes);
+    }
+  }
+
+  fn for_each_u16<F: FnMut(u16)>(bytes: &[u8], callback: F) {
+    bytes.chunks(2).map(|bytes| {
+      let array = [bytes[0], bytes[1]];
+      let n = unsafe { mem::transmute::<[u8;2], u16>(array) };
+      n
+    }).for_each(callback);
+  }
+
   #[test]
   fn test_small_read_all() {
     const MSG : &'static [u8] = b"try reading this with direct IO";
@@ -289,25 +318,13 @@ mod tests {
       100
     ).unwrap();
 
-    let mut events = mio::Events::with_capacity(1);
-    let mut poll = mio::Poll::new().unwrap();
-    let token = mio::Token(1);
-    reader.register(&mut poll, token).unwrap();
-
     let mut counter = 0u16;
-
-    while reader.try_queue_read().unwrap() {
-      //wait for read operation to finish
-      poll.poll(&mut events, None).unwrap();
-      let read_bytes = reader.try_get_read_bytes().unwrap();
-      for bytes in read_bytes.chunks(2) {
-        let array = [bytes[0], bytes[1]];
-        let n = unsafe { mem::transmute::<[u8;2], u16>(array) };
+    read_until_end(&mut reader, |read_bytes| {
+      for_each_u16(read_bytes, |n| {
         assert_eq!(n, counter);
         counter += 1;
-      }
-    }
-
+      });
+    });
     assert_eq!(counter, 4608);
   }
 
@@ -320,28 +337,17 @@ mod tests {
       100
     ).unwrap();
 
-    let mut events = mio::Events::with_capacity(1);
-    let mut poll = mio::Poll::new().unwrap();
-    let token = mio::Token(1);
-    reader.register(&mut poll, token).unwrap();
-
     let mut counter = 500u16;
-
-    while reader.try_queue_read().unwrap() {
-      //wait for read operation to finish
-      poll.poll(&mut events, None).unwrap();
-      let read_bytes = reader.try_get_read_bytes().unwrap();
-      println!("read {} bytes from file", read_bytes.len());
-      for bytes in read_bytes.chunks(2) {
-        let array = [bytes[0], bytes[1]];
-        let n = unsafe { mem::transmute::<[u8;2], u16>(array) };
-        println!("{:?}", n);
+    let mut request_counter = 0usize;
+    read_until_end(&mut reader, |read_bytes| {
+      request_counter += 1;
+      for_each_u16(read_bytes, |n| {
         assert_eq!(n, counter);
         counter += 1;
-      }
-    }
-
+      });
+    });
     assert_eq!(counter, 4200);
+    assert_eq!(request_counter, 3);
   }
 
 }
