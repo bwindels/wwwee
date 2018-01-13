@@ -256,17 +256,22 @@ mod tests {
     Ok(path)
   }
 
-  fn read_until_end<F: FnMut(&[u8])>(reader: &mut Reader, mut callback: F) {
-    let mut events = mio::Events::with_capacity(1);
+  fn setup_event_loop(reader: &mut Reader) -> (mio::Events, mio::Poll) {
     let mut poll = mio::Poll::new().unwrap();
     let token = mio::Token(1);
     reader.register(&mut poll, token).unwrap();
+    (mio::Events::with_capacity(1), poll)
+  }
+
+  fn read_until_end<F: FnMut(&[u8])>(reader: &mut Reader, mut callback: F) {
+    let (mut events, mut poll) = setup_event_loop(reader);
     while reader.try_queue_read().unwrap() {
       //wait for read operation to finish
       poll.poll(&mut events, None).unwrap();
       let read_bytes = reader.try_get_read_bytes().unwrap();
       callback(read_bytes);
     }
+    reader.deregister(&mut poll).unwrap();
   }
 
   fn for_each_u16<F: FnMut(u16)>(bytes: &[u8], callback: F) {
@@ -290,10 +295,7 @@ mod tests {
     let is_queued = reader.try_queue_read().unwrap();
     assert!(is_queued);
 
-    let mut events = mio::Events::with_capacity(1);
-    let mut poll = mio::Poll::new().unwrap();
-    let token = mio::Token(1);
-    reader.register(&mut poll, token).unwrap();
+    let (mut events, mut poll) = setup_event_loop(&mut reader);
     //wait for read operation to finish
     poll.poll(&mut events, None).unwrap();
 
