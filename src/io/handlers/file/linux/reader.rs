@@ -228,7 +228,10 @@ fn chunk_count(total_size: usize, chunk_size: usize) -> usize {
 
 fn normalize_range(file_stats: &libc::stat64, range: Option<Range<usize>>) -> Range<usize> {
   let file_size = file_stats.st_size as usize;
-  range.unwrap_or(0 .. file_size)
+  let range = range.unwrap_or(0 .. file_size);
+  let start = cmp::min(range.start, file_size - 1);
+  let end = cmp::min(range.end, file_size);
+  start .. end
 }
 
 fn buffer_size(file_stats: &libc::stat64, range: &Range<usize>, buffer_size_hint: usize) -> usize {
@@ -260,6 +263,24 @@ mod tests {
     assert_eq!(reader.request_size(), SMALL_MSG.len());
     let read_bytes = read_single(&mut reader);
     assert_eq!(read_bytes, SMALL_MSG);
+  }
+
+  #[test]
+  fn test_small_read_range_too_big() {
+    let path = fixture_path("aio/small.txt\0").unwrap();
+    let reader = Reader::new_with_buffer_size_hint(
+      path.as_path(),
+      Some(0 .. 100),
+      100
+    ).unwrap();
+
+    let mut counter = 0;
+    assert_eq!(reader.request_size(), SMALL_MSG.len());
+    read_until_end(reader, |bytes| {
+      assert_eq!(bytes, SMALL_MSG);
+      counter += 1;
+    });
+    assert_eq!(counter, 1);
   }
 
   #[test]
