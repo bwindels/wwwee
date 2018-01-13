@@ -292,6 +292,8 @@ mod tests {
       100
     ).unwrap();
 
+    assert_eq!(reader.request_size(), MSG.len());
+
     let is_queued = reader.try_queue_read().unwrap();
     assert!(is_queued);
 
