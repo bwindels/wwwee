@@ -243,48 +243,13 @@ fn buffer_size(file_stats: &libc::stat64, range: &Range<usize>, buffer_size_hint
 #[cfg(test)]
 mod tests {
   use super::Reader;
-  use std::env;
-  use std::mem;
-  use std::path::PathBuf;
-  use mio;
+  use self::helpers::*;
 
-  fn fixture_path(fixture_path: &str) -> Result<PathBuf, env::VarError> {
-    let project_dir = env::var("CARGO_MANIFEST_DIR")?;
-    let mut path = PathBuf::from(project_dir);
-    path.push("test_fixtures");
-    path.push(fixture_path);
-    Ok(path)
-  }
-
-  fn setup_event_loop(reader: &mut Reader) -> (mio::Events, mio::Poll) {
-    let mut poll = mio::Poll::new().unwrap();
-    let token = mio::Token(1);
-    reader.register(&mut poll, token).unwrap();
-    (mio::Events::with_capacity(1), poll)
-  }
-
-  fn read_until_end<F: FnMut(&[u8])>(reader: &mut Reader, mut callback: F) {
-    let (mut events, mut poll) = setup_event_loop(reader);
-    while reader.try_queue_read().unwrap() {
-      //wait for read operation to finish
-      poll.poll(&mut events, None).unwrap();
-      let read_bytes = reader.try_get_read_bytes().unwrap();
-      callback(read_bytes);
-    }
-    reader.deregister(&mut poll).unwrap();
-  }
-
-  fn for_each_u16<F: FnMut(u16)>(bytes: &[u8], callback: F) {
-    bytes.chunks(2).map(|bytes| {
-      let array = [bytes[0], bytes[1]];
-      let n = unsafe { mem::transmute::<[u8;2], u16>(array) };
-      n
-    }).for_each(callback);
-  }
+  //contents of the small.txt fixture file
+  const SMALL_MSG : &'static [u8] = b"try reading this with direct IO";
 
   #[test]
   fn test_small_read_all() {
-    const MSG : &'static [u8] = b"try reading this with direct IO";
     let path = fixture_path("aio/small.txt\0").unwrap();
     let mut reader = Reader::new_with_buffer_size_hint(
       path.as_path(),
@@ -292,38 +257,58 @@ mod tests {
       100
     ).unwrap();
 
-    assert_eq!(reader.request_size(), MSG.len());
+    assert_eq!(reader.request_size(), SMALL_MSG.len());
+    let read_bytes = read_single(&mut reader);
+    assert_eq!(read_bytes, SMALL_MSG);
+  }
+
+  #[test]
+  fn test_small_eof_all() {
+    let path = fixture_path("aio/small.txt\0").unwrap();
+    let mut reader = Reader::new_with_buffer_size_hint(
+      path.as_path(),
+      None,
+      100
+    ).unwrap();
+    let (mut events, poll) = setup_event_loop(&mut reader);
 
     let is_queued = reader.try_queue_read().unwrap();
-    assert!(is_queued);
-
-    let (mut events, mut poll) = setup_event_loop(&mut reader);
-    //wait for read operation to finish
+    assert_eq!(is_queued, true);
     poll.poll(&mut events, None).unwrap();
 
-    {
-      let read_bytes = reader.try_get_read_bytes().unwrap();
-      assert_eq!(read_bytes, MSG);
-    }
-    { // since we've reached the end, the next queue should not queue
-      let is_queued = reader.try_queue_read().unwrap();
-      assert_eq!(is_queued, false);
-    }
+    reader.try_get_read_bytes().unwrap();
 
-    reader.deregister(&mut poll).unwrap();
+    let is_queued = reader.try_queue_read().unwrap();
+    assert_eq!(is_queued, false);
+  }
+
+  #[test]
+  fn test_small_read_range() {
+    let range = 4 .. 11;
+    let msg = &SMALL_MSG[range.clone()];
+    let path = fixture_path("aio/small.txt\0").unwrap();
+    let mut reader = Reader::new_with_buffer_size_hint(
+      path.as_path(),
+      Some(range.clone()),
+      100
+    ).unwrap();
+
+    assert_eq!(reader.request_size(), msg.len());
+    let read_bytes = read_single(&mut reader);
+    assert_eq!(read_bytes, msg);
   }
 
   #[test]
   fn test_u16_inc_read_all() {
     let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
-    let mut reader = Reader::new_with_buffer_size_hint(
+    let reader = Reader::new_with_buffer_size_hint(
       path.as_path(),
       None,
       100
     ).unwrap();
 
     let mut counter = 0u16;
-    read_until_end(&mut reader, |read_bytes| {
+    read_until_end(reader, |read_bytes| {
       for_each_u16(read_bytes, |n| {
         assert_eq!(n, counter);
         counter += 1;
@@ -335,7 +320,7 @@ mod tests {
   #[test]
   fn test_u16_inc_read_range() {
     let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
-    let mut reader = Reader::new_with_buffer_size_hint(
+    let reader = Reader::new_with_buffer_size_hint(
       path.as_path(),
       Some(1000 .. 8400),
       100
@@ -343,7 +328,7 @@ mod tests {
 
     let mut counter = 500u16;
     let mut request_counter = 0usize;
-    read_until_end(&mut reader, |read_bytes| {
+    read_until_end(reader, |read_bytes| {
       request_counter += 1;
       for_each_u16(read_bytes, |n| {
         assert_eq!(n, counter);
@@ -353,5 +338,57 @@ mod tests {
     assert_eq!(counter, 4200);
     assert_eq!(request_counter, 3);
   }
+
+  mod helpers {
+    use super::super::Reader;
+    use std::env;
+    use std::mem;
+    use std::path::PathBuf;
+    use mio;
+
+    pub fn fixture_path(fixture_path: &str) -> Result<PathBuf, env::VarError> {
+      let project_dir = env::var("CARGO_MANIFEST_DIR")?;
+      let mut path = PathBuf::from(project_dir);
+      path.push("test_fixtures");
+      path.push(fixture_path);
+      Ok(path)
+    }
+
+    pub fn setup_event_loop(reader: &mut Reader) -> (mio::Events, mio::Poll) {
+      let mut poll = mio::Poll::new().unwrap();
+      let token = mio::Token(1);
+      reader.register(&mut poll, token).unwrap();
+      (mio::Events::with_capacity(1), poll)
+    }
+
+    pub fn read_until_end<F: FnMut(&[u8])>(mut reader: Reader, mut callback: F) {
+      let (mut events, mut poll) = setup_event_loop(&mut reader);
+      while reader.try_queue_read().unwrap() {
+        //wait for read operation to finish
+        poll.poll(&mut events, None).unwrap();
+        let read_bytes = reader.try_get_read_bytes().unwrap();
+        callback(read_bytes);
+      }
+      reader.deregister(&mut poll).unwrap();
+    }
+
+    pub fn read_single(reader: &mut Reader) -> &[u8] {
+      let (mut events, poll) = setup_event_loop(reader);
+      let is_queued  = reader.try_queue_read().unwrap();
+      assert!(is_queued);
+      poll.poll(&mut events, None).unwrap();
+      let read_bytes = reader.try_get_read_bytes().unwrap();
+      read_bytes    
+    }
+
+    pub fn for_each_u16<F: FnMut(u16)>(bytes: &[u8], callback: F) {
+      bytes.chunks(2).map(|bytes| {
+        let array = [bytes[0], bytes[1]];
+        let n = unsafe { mem::transmute::<[u8;2], u16>(array) };
+        n
+      }).for_each(callback);
+    }
+  }
+
 
 }
