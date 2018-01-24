@@ -2,20 +2,31 @@ use std::io::Write;
 use std::io;
 use buffer::Buffer;
 use io::Context;
-use io::handlers::buffer::BufferWriter;
+use io::handlers::file;
 use http::status::Status;
+use super::response_writer::ResponseWriter;
+
+pub enum ResponseBody {
+  InBuffer,
+  File(file::Reader)
+}
 
 pub struct Response {
-  buffer: Buffer
+  buffer: Buffer,
+  body: ResponseBody
 }
 
 impl Response {
-  pub fn new(buffer: Buffer) -> Response {
-    Response {buffer}
+  pub fn from_buffer(response: Buffer) -> Response {
+    Response {buffer: response, body: ResponseBody::InBuffer}
   }
 
-  pub fn into_handler<W: Write>(self, writer: W) -> BufferWriter<W> {
-    BufferWriter::new(self.buffer, writer)
+  pub fn from_file(headers: Buffer, file: file::Reader) -> Response {
+    Response {buffer: headers, body: ResponseBody::File(file)}
+  }
+
+  pub fn into_handler<W: Write>(self, writer: W) -> ResponseWriter<W> {
+    ResponseWriter::new(writer, self.buffer, self.body)
   }
 }
 
@@ -28,11 +39,11 @@ impl<'a> Responder<'a> {
     Responder {ctx}
   }
 
-  pub fn respond(&self, status: Status) -> io::Result<super::HeaderWriter> {
+  pub fn respond(&self, status: Status) -> io::Result<HeaderWriter> {
     let buffer = Buffer::new();
-    let mut response = super::HeaderWriter { buffer };
-    response.write_head(status.0, status.1)?;
-    Ok(response)
+    let mut header_writer = HeaderWriter { buffer };
+    header_writer.write_head(status.0, status.1)?;
+    Ok(header_writer)
   }
 }
 
@@ -54,6 +65,11 @@ impl HeaderWriter {
     write!(&mut self.buffer, "\r\n\r\n")?;
     Ok(BodyWriter::new(self.buffer))
   }
+
+  pub fn finish_with_file(mut self, file: file::Reader) -> io::Result<Response> {
+    write!(&mut self.buffer, "\r\n\r\n")?;
+    Ok(Response::from_file(self.buffer, file))
+  }
 }
 
 pub struct BodyWriter {
@@ -69,7 +85,7 @@ impl BodyWriter {
 
   pub fn finish(self) -> Response {
     println!("Content-Length should be {}", self.buffer.len() - self.len_before_body);
-    Response {buffer: self.buffer}
+    Response::from_buffer(self.buffer)
   }
 }
 

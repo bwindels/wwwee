@@ -10,7 +10,7 @@ pub struct BufferWriter<W> {
 }
 
 impl<'a, W: Write> BufferWriter<W> {
-  pub fn new(buffer: Buffer, writer: W) -> BufferWriter<W> {
+  pub fn new(writer: W, buffer: Buffer) -> BufferWriter<W> {
     BufferWriter { buffer, writer, bytes_written: 0 }
   }
 }

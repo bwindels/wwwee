@@ -1,14 +1,13 @@
 use http::{
-  HeaderBodySplitter,
   Request,
   Responder,
   Response,
   RequestError,
   status
 };
+use http::internal::*;
 use buffer::Buffer;
 use io;
-use io::handlers::buffer::BufferWriter;
 use std;
 use std::io::Write;
 
@@ -54,7 +53,7 @@ impl<T, S> Handler<T, S> {
 }
 
 impl<T, S>
-  io::Handler<Option<BufferWriter<S>>> 
+  io::Handler<Option<ResponseWriter<S>>> 
 for
   Handler<T, S>
 where
@@ -62,7 +61,7 @@ where
   S: std::io::Read + std::io::Write
 {
 
-  fn readable(&mut self, _token: io::AsyncToken, ctx: &io::Context) -> Option<Option<io::handlers::buffer::BufferWriter<S>>>
+  fn readable(&mut self, _token: io::AsyncToken, ctx: &io::Context) -> Option<Option<ResponseWriter<S>>>
   {
     let bytes_read = {
       let read_buffer = &mut self.read_buffer;
@@ -122,7 +121,7 @@ fn handle_no_response() -> Response {
   let response = b"HTTP/1.1 500\r\n\r\nNo response";
   let mut buffer = Buffer::new();
   buffer.write(response);
-  Response::new(buffer)
+  Response::from_buffer(buffer)
 }
 
 #[allow(unused_must_use)]
