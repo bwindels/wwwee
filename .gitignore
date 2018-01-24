@@ -4,3 +4,5 @@ Cargo.lock
 /target/
 **/*.rs.bk
 .DS_Store
+
+/prototypes/read_aio
