@@ -1,6 +1,5 @@
 use split::{buffer_split_mut};
 use http::{RequestResult, RequestError, url_decode, UrlEncodedParams};
-use std::ascii::AsciiExt;
 use http::str::{
   slice_to_str,
   try_split_two_mut

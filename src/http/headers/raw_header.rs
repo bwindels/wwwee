@@ -1,4 +1,3 @@
-use std::ascii::AsciiExt;
 use http::{RequestResult, RequestError};
 use http::str::*;
 use split::{buffer_split_mut, BufferExt};
