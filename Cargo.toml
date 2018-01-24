@@ -2,7 +2,8 @@
 name = "wwwee"
 version = "0.1.0"
 authors = ["Bruno Windels <bruno.windels@gmail.com>"]
+build = "build.rs"
 
 [dependencies]
 mio = "0.6"
-#arrayvec = "0.4.2"
+libc = "0.2.34"

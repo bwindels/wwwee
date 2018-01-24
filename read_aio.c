@@ -92,6 +92,7 @@ int file_register_read(struct aio_file* file, int epoll_fd) {
 
 int file_read_queue(struct aio_file* file) {
 	struct iocb* cb = &file->cb;
+  printf("   submitting iocb with ptr %lx\n", cb);
 
 	cb->aio_offset = file->read_blocks * BUFFER_SIZE;
 	//printf("submitting read request at %x for %d bytes ... ", cb->aio_offset, cb->aio_nbytes);
@@ -121,6 +122,7 @@ int file_read_complete(struct aio_file* file, char** buffer_ptr, size_t* buffer_
 	//	printf("didn't read requested size, EOF?\n");
 	//	return -1;
 	//}
+  printf("    finishing iocb with ptr %lx\n", evt.obj);
 	fflush(0);
 	file->read_blocks += 1;
 	*buffer_size_ptr = evt.res;

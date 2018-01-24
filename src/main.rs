@@ -10,6 +10,8 @@ mod query_connection;
 mod test_helpers;
 
 extern crate mio;
+extern crate libc;
+
 use query_connection::QueryConnection;
 use server::Server;
 use http::request_handler::Handler;
