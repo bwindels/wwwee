@@ -1,61 +1,76 @@
 use super::Reader;
+use io::{AsyncToken, Handler, Context};
+use io::handlers::{send_buffer, SendResult};
+use std::io::Write;
 
-pub struct ResponseHandler {
+pub struct ResponseHandler<W> {
   reader: Reader,
+  socket: W,
   total_bytes_sent: usize,
   buffer_bytes_sent: usize,
   file_token: AsyncToken,
-  socket_token: AsyncToken
+  socket_token: AsyncToken,
+  socket_writeable: bool
 }
 
-impl ResponseHandler {
+impl<W: Write> ResponseHandler<W> {
 
-  pub fn new(reader: Reader, ) -> ResponseHandler {
+  pub fn new(socket: W, reader: Reader, file_token: AsyncToken, socket_token: AsyncToken) -> ResponseHandler<W> {
     ResponseHandler {
       reader,
+      socket,
       file_token,
       socket_token,
-      bytes_sent: 0
+      total_bytes_sent: 0,
+      buffer_bytes_sent: 0,
+      socket_writeable: false
     }
   }
 
-  fn send_data(&mut self) -> Option<usize> {
-    let buffer = self.reader.try_get_read_bytes().unwrap();
-    let remaining_bytes = &buffer[self.bytes_sent ..];
-    let bytes_sent += self.socket.write(remaining_bytes).unwrap();
-    //assume the socket buffer is full here?
-    self.socket_writeable = false;
-
-    self.buffer_bytes_sent += bytes_sent;
-    let remaining_bytes_len_after_write = 
-      buffer.len() - self.buffer_bytes_sent;
-    
-    if remaining_bytes_len_after_write == 0 {
-      self.total_bytes_sent += buffer_bytes_sent;
-      let eof = !self.try_queue_read().unwrap();
-      if eof {
-        return Some(self.total_bytes_sent);
+  fn send_and_request_data(&mut self) -> Option<usize> {
+    let need_more_data = if let Ok(buffer) = self.reader.try_get_read_bytes() {
+      let mut remaining_bytes = &buffer[self.buffer_bytes_sent ..];
+      match send_buffer(&mut self.socket, remaining_bytes) {
+        SendResult::WouldBlock(bytes_written) => {
+          self.socket_writeable = false;
+          self.buffer_bytes_sent += bytes_written;
+          false
+        },
+        SendResult::Consumed => {
+          self.buffer_bytes_sent += remaining_bytes.len();
+          true
+        },
+        SendResult::IoError(_) => {
+          return Some(self.total_bytes_sent);
+        }
       }
+    }
+    else {
+      false
+    };
+
+    if need_more_data {
+      match self.reader.try_queue_read() {
+        Ok(true) | //eof?
+        Err(_) => return Some(self.total_bytes_sent),
+        _ => {}
+      };
     }
     
     return None;
   }
-
-  fn request_data(&mut self) -> Option<usize> {
-
-  }
 }
 
-impl io::Handler<usize> for ResponseHandler {
-  fn readable(&mut self, _token: AsyncToken, _ctx: &Context) -> Option<usize> {
+impl<W: Write> Handler<usize> for ResponseHandler<W> {
+  fn readable(&mut self, token: AsyncToken, _ctx: &Context) -> Option<usize> {
     //if the socket becomes readable, we don't care (http1)
     //or someone else should handle it (http2)
     //so in here we only handle reading from the file
-    if self.socket_writeable {
-      return self.send_data();
+    if token == self.file_token && self.socket_writeable {
+      self.send_and_request_data()
     }
     else {
-      return None;
+      None  //wait first for socket to become writeable
     }
   }
 
@@ -63,9 +78,6 @@ impl io::Handler<usize> for ResponseHandler {
     //can only be the socket, we don't register
     //the file reader eventfd for writeable events 
     self.socket_writeable = true;
-    if self.reader.has_data_ready() {
-      return self.send_data();
-    }
-    return None;
+    self.send_and_request_data()
   }
 }
