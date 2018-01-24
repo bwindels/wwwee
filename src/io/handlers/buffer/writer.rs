@@ -1,6 +1,7 @@
 use buffer::Buffer;
 use io::{Handler, AsyncToken, Context};
-use std::io::{Write, ErrorKind};
+use io::handlers::{send_buffer, SendResult};
+use std::io::Write;
 
 pub struct BufferWriter<W> {
   buffer: Buffer,
@@ -18,22 +19,18 @@ impl<W: Write> Handler<()> for BufferWriter<W> {
 
   fn writable(&mut self, _: AsyncToken, _: &Context) -> Option<()> {
     let slice_to_write = &self.buffer.as_slice()[self.bytes_written ..];
-    match self.writer.write(slice_to_write) {
-      Ok(bytes_written) => {
+
+    match send_buffer(&mut self.writer, slice_to_write) {
+      SendResult::WouldBlock(bytes_written) => {
         self.bytes_written += bytes_written;
-        if self.bytes_written == self.buffer.len() {
-          Some( () )
-        }
-        else {
-          None
-        }
+        None
       },
-      Err(err) => {
-        match err.kind() {
-          ErrorKind::Interrupted |
-          ErrorKind::WouldBlock => None,
-          _ => Some( () )
-        }
+      SendResult::Consumed => {
+        self.bytes_written += slice_to_write.len();
+        Some( () )
+      },
+      SendResult::IoError(_) => {
+        Some( () )
       }
     }
   }
