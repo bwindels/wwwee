@@ -5,7 +5,7 @@ use super::{
   AsyncTokenSource,
   ConnectionId,
   Registered,
-  Register
+  AsyncSource
 };
 
 pub struct Context<'a> {
@@ -19,13 +19,13 @@ impl<'a> Context<'a> {
     Context {poll, conn_id, token_source}
   }
 
-  pub fn register<R: Register>(&self, registerable: R) -> std::io::Result<Registered<R>> {
+  pub fn register<R: AsyncSource>(&self, registerable: R) -> std::io::Result<Registered<R>> {
     let token = self.alloc_token();
     let registered_handler = Registered::register(registerable, token, &self.poll)?;
     Ok(registered_handler)
   }
 
-  pub fn deregister<R: Register>(&self, registerable: &mut R) -> std::io::Result<()> {
+  pub fn deregister<R: AsyncSource>(&self, registerable: &mut R) -> std::io::Result<()> {
     registerable.deregister(&self.poll)
   }
   

@@ -8,7 +8,7 @@ use std::ops::Range;
 use std::os::unix::io::{RawFd, AsRawFd};
 use std::os::unix::ffi::OsStrExt;
 use libc;
-use io::{Register, Token};
+use io::{AsyncSource, Token};
 use super::aio;
 use super::owned_fd::OwnedFd;
 
@@ -183,7 +183,7 @@ impl Reader {
   }
 }
 
-impl Register for Reader {
+impl AsyncSource for Reader {
   fn register(&mut self, selector: &mio::Poll, token: Token) -> io::Result<()> {
     selector.register(
       &mio::unix::EventedFd(&self.event_fd.as_raw_fd()),
