@@ -10,7 +10,7 @@ impl<'a> RequestHandler for StaticFileHandler<'a> {
     
     let range = request.headers().content_range;
     let path = Path::abs_with_root(self.root_dir, request.uri);
-    let reader = context.read_file(path, range);
+    let reader = res.read_file(path, range);
     let content_length = reader.request_size();
     let mut response = res.respond(status::OK);
     //response.set_header(Header::ContentLength(content_length));
