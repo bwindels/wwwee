@@ -1,10 +1,10 @@
-use super::Reader;
+use io::sources::file::Reader;
 use io::{Event, AsyncSource, Handler, Registered, Context};
 use io::handlers::{send_buffer, SendResult};
 use std::io::Write;
 use std::ops::DerefMut;
 
-pub struct ResponseHandler<W> {
+pub struct FileResponder<W> {
   reader: Registered<Reader>,
   socket: Registered<W>,
   total_bytes_sent: usize,
@@ -12,10 +12,10 @@ pub struct ResponseHandler<W> {
   socket_writeable: bool
 }
 
-impl<W: Write> ResponseHandler<W> {
+impl<W: Write> FileResponder<W> {
 
-  pub fn new(socket: Registered<W>, reader: Registered<Reader>) -> ResponseHandler<W> {
-    ResponseHandler {
+  pub fn new(socket: Registered<W>, reader: Registered<Reader>) -> FileResponder<W> {
+    FileResponder {
       reader,
       socket,
       total_bytes_sent: 0,
@@ -62,7 +62,7 @@ impl<W: Write> ResponseHandler<W> {
   }
 }
 
-impl<W: Write + AsyncSource> Handler<usize> for ResponseHandler<W> {
+impl<W: Write + AsyncSource> Handler<usize> for FileResponder<W> {
   fn handle_event(&mut self, event: &Event, _ctx: &Context) -> Option<usize> {
     //if the socket becomes readable, we don't care (http1)
     //or someone else should handle it (http2)

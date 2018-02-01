@@ -4,15 +4,15 @@ use io::handlers::{send_buffer, SendResult};
 use std::io::Write;
 use std::ops::DerefMut;
 
-pub struct BufferWriter<W> {
+pub struct BufferResponder<W> {
   buffer: Buffer,
   bytes_written: usize,
   writer: Registered<W>
 }
 
-impl<'a, W: Write> BufferWriter<W> {
-  pub fn new(writer: Registered<W>, buffer: Buffer) -> BufferWriter<W> {
-    BufferWriter { buffer, writer, bytes_written: 0 }
+impl<'a, W: Write> BufferResponder<W> {
+  pub fn new(writer: Registered<W>, buffer: Buffer) -> BufferResponder<W> {
+    BufferResponder { buffer, writer, bytes_written: 0 }
   }
 
   pub fn into_writer(self) -> Registered<W> {
@@ -20,7 +20,7 @@ impl<'a, W: Write> BufferWriter<W> {
   }
 }
 
-impl<W: Write + AsyncSource> Handler<usize> for BufferWriter<W> {
+impl<W: Write + AsyncSource> Handler<usize> for BufferResponder<W> {
 
   fn handle_event(&mut self, event: &Event, _ctx: &Context) -> Option<usize> {
     if !self.writer.is_source_of(event) {

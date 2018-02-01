@@ -2,7 +2,7 @@ use std::io::Write;
 use std::io;
 use buffer::Buffer;
 use io::{Context, Registered};
-use io::handlers::file;
+use io::sources::file;
 use http::status::Status;
 use super::response_writer::ResponseWriter;
 

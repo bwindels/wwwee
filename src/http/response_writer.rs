@@ -1,12 +1,12 @@
 use io::{Handler, AsyncSource, Context, Registered, Event};
-use io::handlers::{buffer, file};
+use io::handlers::{BufferResponder, FileResponder};
 use std::io::Write;
 use buffer::Buffer;
 use super::internal::ResponseBody;
 
 enum State<W> {
-  Headers(buffer::BufferWriter<W>, ResponseBody),
-  FileBody(file::ResponseHandler<W>)
+  Headers(BufferResponder<W>, ResponseBody),
+  FileBody(FileResponder<W>)
 }
 
 pub struct ResponseWriter<W> {
@@ -16,7 +16,7 @@ pub struct ResponseWriter<W> {
 impl<W: Write> ResponseWriter<W> {
   pub fn new(socket: Registered<W>, headers: Buffer, body: ResponseBody) -> ResponseWriter<W> {
     ResponseWriter {
-      state: Some(State::Headers(buffer::BufferWriter::new(socket, headers), body))
+      state: Some(State::Headers(BufferResponder::new(socket, headers), body))
     }
   }
 
@@ -26,7 +26,7 @@ impl<W: Write> ResponseWriter<W> {
       Some(State::Headers(header_writer, ResponseBody::File(file_reader))) => {
         let socket = header_writer.into_writer();
         let file_reader = ctx.register(file_reader).unwrap();
-        let file_writer = file::ResponseHandler::new(socket, file_reader);
+        let file_writer = FileResponder::new(socket, file_reader);
         Some(State::FileBody(file_writer))
       },
       Some(State::FileBody(file_writer)) => {

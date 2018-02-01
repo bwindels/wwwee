@@ -7,7 +7,7 @@ fn main() {
 
   // note that there are a number of downsides to this approach, the comments
   // below detail how to improve the portability of these commands.
-  Command::new("cc").args(&["src/io/handlers/file/linux/aio.c", "-c", "-fPIC", "-o"])
+  Command::new("cc").args(&["src/io/sources/file/linux/aio.c", "-c", "-fPIC", "-o"])
                      .arg(&format!("{}/aio.o", out_dir))
                      .status().unwrap();
   Command::new("ar").args(&["crus", "libwwwee-aio.a", "aio.o"])
