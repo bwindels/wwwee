@@ -59,7 +59,7 @@ for
   Handler<T, S>
 where
   T: RequestHandler,
-  S: std::io::Read + std::io::Write
+  S: std::io::Read + std::io::Write + io::AsyncSource
 {
 
   fn handle_event(&mut self, event: &io::Event, ctx: &io::Context) -> Option<Option<ResponseWriter<S>>>

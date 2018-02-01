@@ -13,7 +13,7 @@ pub struct ResponseWriter<W> {
   state: Option<State<W>>
 }
 
-impl<W: Write> ResponseWriter<W> {
+impl<W: Write + AsyncSource> ResponseWriter<W> {
   pub fn new(socket: Registered<W>, headers: Buffer, body: ResponseBody) -> ResponseWriter<W> {
     ResponseWriter {
       state: Some(State::Headers(BufferResponder::new(socket, headers), body))
@@ -22,19 +22,28 @@ impl<W: Write> ResponseWriter<W> {
 
   fn next_state(&mut self, ctx: &Context) -> Option<State<W>> {
     let state = self.state.take();
-    match state {
+    let (new_state, socket_to_close) = match state {
       Some(State::Headers(header_writer, ResponseBody::File(file_reader))) => {
         let socket = header_writer.into_writer();
         let file_reader = ctx.register(file_reader).unwrap();
         let mut file_writer = FileResponder::start(socket, file_reader).unwrap();
-        Some(State::FileBody(file_writer))
+        (Some(State::FileBody(file_writer)), None)
+      },
+      Some(State::Headers(header_writer, ResponseBody::InBuffer)) => {
+        let socket = header_writer.into_writer();
+        (None, Some(socket))
       },
       Some(State::FileBody(file_writer)) => {
-        file_writer.into_reader().into_deregistered(ctx).unwrap();
-        None
+        let (reader, socket) = file_writer.into_parts();
+        reader.into_deregistered(ctx).unwrap();
+        (None, Some(socket))
       },
-      _ => None
+      None => (None, None)
+    };
+    if let Some(socket) = socket_to_close {
+      socket.into_deregistered(ctx).unwrap();
     }
+    new_state
   }
 }
 

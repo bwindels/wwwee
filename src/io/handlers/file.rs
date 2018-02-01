@@ -59,8 +59,8 @@ impl<W: Write> FileResponder<W> {
     return None;
   }
 
-  pub fn into_reader(self) -> Registered<Reader> {
-    self.reader
+  pub fn into_parts(self) -> (Registered<Reader>, Registered<W>) {
+    (self.reader, self.socket)
   }
 }
 

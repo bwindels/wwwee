@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::io;
 use buffer::Buffer;
-use io::{Context, Registered};
+use io::{Context, AsyncSource, Registered};
 use io::sources::file;
 use http::status::Status;
 use super::response_writer::ResponseWriter;
@@ -25,7 +25,7 @@ impl Response {
     Response {buffer: headers, body: ResponseBody::File(file)}
   }
 
-  pub fn into_handler<W: Write>(self, writer: Registered<W>) -> ResponseWriter<W> {
+  pub fn into_handler<W: Write + AsyncSource>(self, writer: Registered<W>) -> ResponseWriter<W> {
     ResponseWriter::new(writer, self.buffer, self.body)
   }
 }
