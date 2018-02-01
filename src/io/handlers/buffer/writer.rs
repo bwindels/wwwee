@@ -1,16 +1,17 @@
 use buffer::Buffer;
-use io::{Handler, AsyncToken, Context};
+use io::{Handler, AsyncToken, Registered, Context};
 use io::handlers::{send_buffer, SendResult};
 use std::io::Write;
+use std::ops::DerefMut;
 
 pub struct BufferWriter<W> {
   buffer: Buffer,
   bytes_written: usize,
-  writer: W
+  writer: Registered<W>
 }
 
 impl<'a, W: Write> BufferWriter<W> {
-  pub fn new(writer: W, buffer: Buffer) -> BufferWriter<W> {
+  pub fn new(writer: Registered<W>, buffer: Buffer) -> BufferWriter<W> {
     BufferWriter { buffer, writer, bytes_written: 0 }
   }
 }

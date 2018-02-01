@@ -10,6 +10,7 @@ use buffer::Buffer;
 use io;
 use std;
 use std::io::Write;
+use std::ops::DerefMut;
 
 pub trait RequestHandler {
   
@@ -31,7 +32,7 @@ pub struct Handler<T, S> {
   header_body_splitter: HeaderBodySplitter,
   handler: T,
   read_buffer: Buffer,
-  socket: Option<S>
+  socket: Option<io::Registered<S>>
   //content_length: u64
 }
 /*
@@ -42,7 +43,7 @@ enum Stage {
 */
 impl<T, S> Handler<T, S> {
 
-  pub fn new(handler: T, socket: S) -> Handler<T, S> {
+  pub fn new(handler: T, socket: io::Registered<S>) -> Handler<T, S> {
     Handler {
       header_body_splitter: HeaderBodySplitter::new(),
       handler,
@@ -66,7 +67,7 @@ where
     let bytes_read = {
       let read_buffer = &mut self.read_buffer;
       self.socket.as_mut().map(|socket| {
-        read_buffer.read_from(socket)
+        read_buffer.read_from(socket.deref_mut())
       })
     };
 

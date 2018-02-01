@@ -10,7 +10,8 @@ use io::{
   Context,
   ConnectionId,
   AsyncToken,
-  AsyncTokenSource};
+  AsyncTokenSource,
+  Registered};
 
 pub const CONNECTION_COUNT : usize = 100;
 const SERVER_TOKEN : mio::Token = mio::Token(0);
@@ -39,7 +40,7 @@ pub struct Server<T, F> {
 
 impl<T, F> Server<T, F>
   where T: Handler<()>,
-        F: Fn(TcpStream) -> T
+        F: Fn(Registered<TcpStream>) -> T
 {
   pub fn new(addr: SocketAddr, handler_creator: F)
     -> io::Result<Server<T, F>>
@@ -132,13 +133,8 @@ impl<T, F> Server<T, F>
   fn create_and_register_connection(&self, conn_id: ConnectionId, socket: TcpStream) -> io::Result<Connection<T>> {
     let socket_async_token = AsyncToken::default();
     let token = Token::from_parts(conn_id, socket_async_token);
-    self.poll.register(
-      &socket,
-      token.as_mio_token(), 
-      Ready::readable() | Ready::writable(), 
-      PollOpt::edge()
-    )?;
-    let handler = (self.handler_creator)(socket);
+    let registered_socket = Registered::register(socket, token, &self.poll)?;
+    let handler = (self.handler_creator)(registered_socket);
     Ok(Connection {
       handler,
       token_source: AsyncTokenSource::starting_from(socket_async_token)

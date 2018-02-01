@@ -2,12 +2,11 @@ use super::Reader;
 use io::{AsyncToken, Handler, Registered, Context};
 use io::handlers::{send_buffer, SendResult};
 use std::io::Write;
+use std::ops::DerefMut;
 
-// TODO: move socket to Registered<W> as well, so we don't need to keep track of token seperately
 pub struct ResponseHandler<W> {
   reader: Registered<Reader>,
-  socket: W,
-  socket_token: AsyncToken,
+  socket: Registered<W>,
   total_bytes_sent: usize,
   buffer_bytes_sent: usize,
   socket_writeable: bool
@@ -15,11 +14,10 @@ pub struct ResponseHandler<W> {
 
 impl<W: Write> ResponseHandler<W> {
 
-  pub fn new(socket: W, socket_token: AsyncToken, reader: Registered<Reader>) -> ResponseHandler<W> {
+  pub fn new(socket: Registered<W>, reader: Registered<Reader>) -> ResponseHandler<W> {
     ResponseHandler {
       reader,
       socket,
-      socket_token,
       total_bytes_sent: 0,
       buffer_bytes_sent: 0,
       socket_writeable: false
@@ -29,7 +27,7 @@ impl<W: Write> ResponseHandler<W> {
   fn send_and_request_data(&mut self) -> Option<usize> {
     let need_more_data = if let Ok(buffer) = self.reader.try_get_read_bytes() {
       let mut remaining_bytes = &buffer[self.buffer_bytes_sent ..];
-      match send_buffer(&mut self.socket, remaining_bytes) {
+      match send_buffer(self.socket.deref_mut(), remaining_bytes) {
         SendResult::WouldBlock(bytes_written) => {
           self.socket_writeable = false;
           self.buffer_bytes_sent += bytes_written;

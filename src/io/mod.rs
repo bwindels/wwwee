@@ -2,6 +2,7 @@ mod token;
 mod handler;
 mod context;
 mod async_source;
+mod sources;
 pub mod handlers;
 
 pub use self::token::{Token, AsyncToken, AsyncTokenSource, ConnectionId};
