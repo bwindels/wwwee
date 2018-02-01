@@ -8,6 +8,7 @@ use std::ops::Range;
 use std::os::unix::io::{RawFd, AsRawFd};
 use std::os::unix::ffi::OsStrExt;
 use libc;
+use io::{Register, Token};
 use super::aio;
 use super::owned_fd::OwnedFd;
 
@@ -127,21 +128,6 @@ impl Reader {
     }
   }
 
-  pub fn register(&self, selector: &mut mio::Poll, token: mio::Token) -> io::Result<()> {
-    selector.register(
-      &mio::unix::EventedFd(&self.event_fd.as_raw_fd()),
-      token,
-      mio::Ready::readable(),
-      mio::PollOpt::edge()
-    )
-  }
-
-  pub fn deregister(&mut self, selector: &mut mio::Poll) -> io::Result<()> {
-    selector.deregister(
-      &mio::unix::EventedFd(&self.event_fd.as_raw_fd())
-    )
-  }
-
   pub fn request_size(&self) -> usize {
     self.range.end - self.range.start
   }
@@ -194,6 +180,23 @@ impl Reader {
       }
     }
     Ok( () )
+  }
+}
+
+impl Register for Reader {
+  fn register(&mut self, selector: &mio::Poll, token: Token) -> io::Result<()> {
+    selector.register(
+      &mio::unix::EventedFd(&self.event_fd.as_raw_fd()),
+      token.as_mio_token(),
+      mio::Ready::readable(),
+      mio::PollOpt::edge()
+    )
+  }
+
+  fn deregister(&mut self, selector: &mio::Poll) -> io::Result<()> {
+    selector.deregister(
+      &mio::unix::EventedFd(&self.event_fd.as_raw_fd())
+    )
   }
 }
 

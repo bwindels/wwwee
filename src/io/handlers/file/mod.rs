@@ -4,3 +4,4 @@ mod linux;
 pub use self::linux::Reader;
 
 mod response;
+pub use self::response::ResponseHandler;

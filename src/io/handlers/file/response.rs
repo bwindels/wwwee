@@ -1,25 +1,24 @@
 use super::Reader;
-use io::{AsyncToken, Handler, Context};
+use io::{AsyncToken, Handler, Registered, Context};
 use io::handlers::{send_buffer, SendResult};
 use std::io::Write;
 
+// TODO: move socket to Registered<W> as well, so we don't need to keep track of token seperately
 pub struct ResponseHandler<W> {
-  reader: Reader,
+  reader: Registered<Reader>,
   socket: W,
+  socket_token: AsyncToken,
   total_bytes_sent: usize,
   buffer_bytes_sent: usize,
-  file_token: AsyncToken,
-  socket_token: AsyncToken,
   socket_writeable: bool
 }
 
 impl<W: Write> ResponseHandler<W> {
 
-  pub fn new(socket: W, reader: Reader, file_token: AsyncToken, socket_token: AsyncToken) -> ResponseHandler<W> {
+  pub fn new(socket: W, socket_token: AsyncToken, reader: Registered<Reader>) -> ResponseHandler<W> {
     ResponseHandler {
       reader,
       socket,
-      file_token,
       socket_token,
       total_bytes_sent: 0,
       buffer_bytes_sent: 0,
@@ -59,6 +58,10 @@ impl<W: Write> ResponseHandler<W> {
     
     return None;
   }
+
+  pub fn into_reader(self) -> Registered<Reader> {
+    self.reader
+  }
 }
 
 impl<W: Write> Handler<usize> for ResponseHandler<W> {
@@ -66,7 +69,7 @@ impl<W: Write> Handler<usize> for ResponseHandler<W> {
     //if the socket becomes readable, we don't care (http1)
     //or someone else should handle it (http2)
     //so in here we only handle reading from the file
-    if token == self.file_token && self.socket_writeable {
+    if token == self.reader.token() && self.socket_writeable {
       self.send_and_request_data()
     }
     else {
