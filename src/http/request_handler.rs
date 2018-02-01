@@ -132,13 +132,13 @@ fn handle_no_response() -> Response {
 #[allow(unused_must_use)]
 fn handle_io_error(err: std::io::Error, responder: &Responder) -> Option<Response> {
   let mut resp = responder.respond(status::INTERNAL_SERVER_ERROR).ok()?;
-  let msg = match err.kind() {
+  /*let msg = match err.kind() {
     std::io::ErrorKind::WriteZero => "Response too big for buffer",
-    _ => "Unknown IO error"
-  };
+    _ => "Unknown IO error:"
+  };*/
   resp.set_header("Content-Type", "text/plain").ok()?;
   let mut body = resp.into_body().ok()?;
-  write!(body, "{}", msg);
+  write!(body, "io error: {:?}", err);
   Some(body.finish())
 }
 

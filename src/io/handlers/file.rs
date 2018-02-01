@@ -2,6 +2,7 @@ use io::sources::file::Reader;
 use io::{Event, AsyncSource, Handler, Registered, Context};
 use io::handlers::{send_buffer, SendResult};
 use std::io::Write;
+use std;
 use std::ops::DerefMut;
 
 pub struct FileResponder<W> {
@@ -14,14 +15,15 @@ pub struct FileResponder<W> {
 
 impl<W: Write> FileResponder<W> {
 
-  pub fn new(socket: Registered<W>, reader: Registered<Reader>) -> FileResponder<W> {
-    FileResponder {
+  pub fn start(socket: Registered<W>, mut reader: Registered<Reader>) -> std::io::Result<FileResponder<W>> {
+    reader.try_queue_read()?; //queue initial read to start getting events
+    Ok(FileResponder {
       reader,
       socket,
       total_bytes_sent: 0,
       buffer_bytes_sent: 0,
-      socket_writeable: false
-    }
+      socket_writeable: true
+    })
   }
 
   fn send_and_request_data(&mut self) -> Option<usize> {

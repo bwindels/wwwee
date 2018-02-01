@@ -34,7 +34,7 @@ pub struct Reader {
 }
 
 impl Reader {
-  pub fn new(
+  pub fn open(
     path: &Path,
     range: Option<Range<usize>>) -> io::Result<Reader>
   {

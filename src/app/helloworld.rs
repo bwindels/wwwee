@@ -14,7 +14,7 @@ impl HelloWorld {
 
 impl http::RequestHandler for HelloWorld {
   fn read_headers(&mut self, req: &http::Request, responder: &http::Responder) -> io::Result<Option<http::Response>> {
-    let mut resp = responder.respond(http::OK)?;
+    let mut resp = responder.respond(http::status::OK)?;
     resp.set_header("Content-Type", "text/html")?;
     let mut body = resp.into_body()?;
     write!(body, "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body>")?;

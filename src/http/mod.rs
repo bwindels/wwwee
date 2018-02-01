@@ -5,7 +5,7 @@ mod error;
 mod url_decode;
 mod str;
 mod url_params;
-mod status;
+pub mod status;
 mod response;
 mod response_writer;
 
@@ -17,7 +17,6 @@ pub use self::error::*;
 pub use self::url_decode::*;
 pub use self::url_params::*;
 pub use self::response::{Responder, Response};
-pub use self::status::*;
 pub use self::request_handler::RequestHandler;
 
 mod internal {

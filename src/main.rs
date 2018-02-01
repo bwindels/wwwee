@@ -19,7 +19,8 @@ use http::request_handler::Handler;
 fn main() {
   let addr = "127.0.0.1:4000".parse().unwrap();
   let handler_creator = |socket| {
-    QueryConnection::new(Handler::new(app::HelloWorld::new(), socket))
+    //QueryConnection::new(Handler::new(app::HelloWorld::new(), socket))
+    QueryConnection::new(Handler::new(app::StaticFileHandler::new(), socket))
   };
   let mut server = Server::new(addr, handler_creator).unwrap();
   server.start().unwrap();

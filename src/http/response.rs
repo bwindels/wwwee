@@ -61,14 +61,18 @@ impl HeaderWriter {
     write!(&mut self.buffer, "\r\n{}:{}", name, value)
   }
 
+  pub fn set_header_usize(&mut self, name: &str, value: usize) -> io::Result<()> {
+    write!(&mut self.buffer, "\r\n{}:{}", name, value)
+  }
+
   pub fn into_body(mut self) -> io::Result<BodyWriter> {
     write!(&mut self.buffer, "\r\n\r\n")?;
     Ok(BodyWriter::new(self.buffer))
   }
 
-  pub fn finish_with_file(mut self, file: file::Reader) -> io::Result<Response> {
+  pub fn finish_with_file(mut self, file: file::Reader) -> io::Result<Option<Response>> {
     write!(&mut self.buffer, "\r\n\r\n")?;
-    Ok(Response::from_file(self.buffer, file))
+    Ok(Some(Response::from_file(self.buffer, file)))
   }
 }
 

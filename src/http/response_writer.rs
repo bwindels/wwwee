@@ -26,7 +26,7 @@ impl<W: Write> ResponseWriter<W> {
       Some(State::Headers(header_writer, ResponseBody::File(file_reader))) => {
         let socket = header_writer.into_writer();
         let file_reader = ctx.register(file_reader).unwrap();
-        let file_writer = FileResponder::new(socket, file_reader);
+        let mut file_writer = FileResponder::start(socket, file_reader).unwrap();
         Some(State::FileBody(file_writer))
       },
       Some(State::FileBody(file_writer)) => {
