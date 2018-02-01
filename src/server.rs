@@ -1,22 +1,22 @@
-use mio::{Poll, Event, Events, Token, Ready, PollOpt};
+use mio::{Poll, Event, Events, Ready, PollOpt};
 use mio::net::{TcpListener, TcpStream};
+use mio;
 use std::net::SocketAddr;
 use std::io;
 use std::mem;
 use io::{
+  Token,
   Handler,
   Context,
-  create_token,
-  split_token,
   ConnectionId,
-  AsyncToken};
+  AsyncToken,
+  AsyncTokenSource};
 
 pub const CONNECTION_COUNT : usize = 100;
-const CONN_SOCKET_TOKEN : AsyncToken = 0;
-const SERVER_TOKEN : Token = Token(0);
+const SERVER_TOKEN : mio::Token = mio::Token(0);
 
-fn initialize_connections<T>() -> [Option<T>; CONNECTION_COUNT] {
-  let mut connections : [Option<T>; CONNECTION_COUNT] = 
+fn initialize_connections<T>() -> [Option<Connection<T>>; CONNECTION_COUNT] {
+  let mut connections : [Option<Connection<T>>; CONNECTION_COUNT] = 
     unsafe { mem::uninitialized() };
   
   for conn in connections.iter_mut() {
@@ -25,8 +25,13 @@ fn initialize_connections<T>() -> [Option<T>; CONNECTION_COUNT] {
   connections
 }
 
+struct Connection<T> {
+  pub handler: T,
+  pub token_source: AsyncTokenSource
+}
+
 pub struct Server<T, F> {
-  connections: [Option<T>; CONNECTION_COUNT],
+  connections: [Option<Connection<T>>; CONNECTION_COUNT],
   poll: Poll,
   server_socket: TcpListener,
   handler_creator: F,
@@ -80,18 +85,22 @@ impl<T, F> Server<T, F>
   }
 
   fn handle_event(&mut self, event: &Event) -> Option<usize> {
-    let (conn_id, async_token) = split_token(event.token().0);
-    let conn_idx = (conn_id - 1) as usize;
-    if let Some(ref mut handler) = self.connections[conn_idx] {
-      let ctx = Context::new(&self.poll, conn_id);
+    let token = Token::from_mio_token(event.token());
+    let conn_id = token.connection_id();
+    let conn_idx = conn_id.as_index();
+
+    if let Some(ref mut connection) = self.connections[conn_idx] {
+
+      let mut ctx = Context::new(&self.poll, conn_id, &mut connection.token_source);
       let r = event.readiness();
+      // TODO: deregister socket from poll and dont call writable when readable already closed the connection
       if r.is_readable() {
-        if let Some(_) = handler.readable(async_token, &ctx) {
+        if let Some(_) = connection.handler.readable(token.async_token(), &mut ctx) {
           return Some(conn_idx);
         }
       }
       if r.is_writable() {
-        if let Some(_) = handler.writable(async_token, &ctx) {
+        if let Some(_) = connection.handler.writable(token.async_token(), &mut ctx) {
           return Some(conn_idx);
         }
       }
@@ -104,14 +113,14 @@ impl<T, F> Server<T, F>
       .iter()
       .position(|conn| conn.is_none())
     {
-      let conn_id = (conn_idx + 1) as ConnectionId;
-      match self.create_and_register_handler(conn_id, socket) {
-        Ok(handler) => {
-          self.connections[conn_idx] = Some(handler);
-          println!("added new connection with id {}", conn_id);
+      let conn_id = ConnectionId::from_index(conn_idx);
+      match self.create_and_register_connection(conn_id, socket) {
+        Ok(connection) => {
+          self.connections[conn_idx] = Some(connection);
+          println!("added new connection with id {:?}", conn_id);
         },
         Err(err) => {
-          println!("error while trying to register handler for connection {}: {}", conn_id, err);
+          println!("error while trying to register handler for connection {:?}: {:?}", conn_id, err);
         }
       }
     }
@@ -120,15 +129,19 @@ impl<T, F> Server<T, F>
     }
   }
 
-  fn create_and_register_handler(&self, conn_id: ConnectionId, socket: TcpStream) -> io::Result<T> {
-    let token = Token(create_token(conn_id, CONN_SOCKET_TOKEN));
+  fn create_and_register_connection(&self, conn_id: ConnectionId, socket: TcpStream) -> io::Result<Connection<T>> {
+    let socket_async_token = AsyncToken::default();
+    let token = Token::from_parts(conn_id, socket_async_token);
     self.poll.register(
       &socket,
-      token, 
+      token.as_mio_token(), 
       Ready::readable() | Ready::writable(), 
       PollOpt::edge()
     )?;
     let handler = (self.handler_creator)(socket);
-    Ok(handler)
+    Ok(Connection {
+      handler,
+      token_source: AsyncTokenSource::starting_from(socket_async_token)
+    })
   }
 }

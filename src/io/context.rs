@@ -1,18 +1,22 @@
-//use std;
-//use std::path::Path;
-//use super::token::AsyncToken;
-
+use std;
 use mio;
-use io::token::ConnectionId;
+use super::{
+  Token,
+  AsyncTokenSource,
+  ConnectionId,
+  Registered,
+  Register
+};
 
 pub struct Context<'a> {
   poll: &'a mio::Poll,
-  conn_id: ConnectionId
+  conn_id: ConnectionId,
+  token_source: &'a AsyncTokenSource
 }
 
 impl<'a> Context<'a> {
-  pub fn new(poll: &'a mio::Poll, conn_id: ConnectionId) -> Context<'a> {
-    Context {poll, conn_id}
+  pub fn new(poll: &'a mio::Poll, conn_id: ConnectionId, token_source: &'a AsyncTokenSource) -> Context<'a> {
+    Context {poll, conn_id, token_source}
   }
 
 

@@ -1,29 +1,106 @@
-pub type ConnectionId = u32;
-#[cfg(target_pointer_width = "64")]
-pub type AsyncToken = u32;
-#[cfg(target_pointer_width = "32")]
-pub type AsyncToken = u16;
+use mio;
+pub use self::AsyncToken;
+use std::cell::Cell;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ConnectionId(u32);
 
 #[cfg(target_pointer_width = "64")]
-pub fn split_token(token: usize) -> (ConnectionId, AsyncToken) {
-  let conn_id = (token >> 32) as u32;
-  let async_token = (token & 0xFFFFFFFF) as u32;
-  (conn_id, async_token)
-}
-#[cfg(target_pointer_width = "32")]
-pub fn split_token(token: usize) -> (ConnectionId, AsyncToken) {
-  let conn_id = token >> 10;
-  let async_token = token & 0b11_1111_1111;
-  (conn_id, async_token)
+pub use self::bit64::*;
+#[cfg(target_pointer_width = "64")]
+mod bit64 {
+  #[derive(Clone, Copy, Debug, Default, PartialEq)]
+  pub struct AsyncToken(u32);
+
+  // TODO: deal with overflow here
+  pub fn next_token(token: AsyncToken) -> AsyncToken {
+    AsyncToken(token.0 + 1)
+  }
+
+  pub fn split_token(token: usize) -> (super::ConnectionId, AsyncToken) {
+    let conn_id = super::ConnectionId ( (token >> 32) as u32 );
+    let async_token = AsyncToken( (token & 0xFFFFFFFF) as u32 );
+    (conn_id, async_token)
+  }
+
+  pub fn create_token(conn_id: super::ConnectionId, async_token: AsyncToken) -> usize {
+    (async_token.0 as usize) | ((conn_id.0 as usize) << 32)
+  }
 }
 
-#[cfg(target_pointer_width = "64")]
-pub fn create_token(conn_id: ConnectionId, async_token: AsyncToken) -> usize {
-  (async_token as usize) | ((conn_id as usize) << 32)
-}
 #[cfg(target_pointer_width = "32")]
-pub fn create_token(conn_id: ConnectionId, async_token: AsyncToken) -> usize {
-  (async_token as usize) | ((conn_id as usize) << 22)
+use self::bit32::*;
+#[cfg(target_pointer_width = "32")]
+mod bit32 {
+  #[derive(Clone, Copy, Debug, Default, PartialEq)]
+  pub struct AsyncToken(u16);
+
+  // TODO: deal with overflow here
+  pub fn next_token(token: AsyncToken) -> AsyncToken {
+    AsyncToken(token.0 + 1)
+  }
+
+  pub fn split_token(token: usize) -> (ConnectionId, AsyncToken) {
+    let conn_id = token >> 10;
+    let async_token = token & 0b11_1111_1111;
+    (conn_id, async_token)
+  }
+
+  pub fn create_token(conn_id: ConnectionId, async_token: AsyncToken) -> usize {
+    (async_token as usize) | ((conn_id as usize) << 22)
+  }
+}
+
+impl ConnectionId {
+  pub fn from_index(idx: usize) -> ConnectionId {
+    ConnectionId( (idx as u32) + 1)
+  }
+
+  pub fn as_index(self) -> usize {
+    self.0 as usize - 1
+  }
+}
+
+#[derive(Clone, Copy)]
+pub struct Token {
+  token: usize
+}
+
+impl Token {
+  pub fn from_mio_token(token: mio::Token) -> Token {
+    Token { token: token.0 }
+  }
+  pub fn from_parts(conn_id: ConnectionId, async_token: AsyncToken) -> Token {
+    Token { token: create_token(conn_id, async_token) }
+  }
+
+  pub fn as_mio_token(self) -> mio::Token {
+    mio::Token(self.token)
+  }
+
+  pub fn async_token(self) -> AsyncToken {
+    split_token(self.token).1
+  }
+
+  pub fn connection_id(self) -> ConnectionId {
+    split_token(self.token).0
+  }
+}
+
+pub struct AsyncTokenSource {
+  counter: Cell<AsyncToken>
+}
+
+impl AsyncTokenSource {
+  
+  pub fn starting_from(start_from: AsyncToken) -> AsyncTokenSource {
+    AsyncTokenSource { counter: Cell::new(start_from) }
+  }
+
+  pub fn alloc_async_token(&self) -> AsyncToken {
+    self.counter.set(next_token(self.counter.get()));
+    self.counter.get()
+  }
 }
 
 #[cfg(test)]
