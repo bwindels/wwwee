@@ -20,27 +20,20 @@ impl<W: Write> ResponseWriter<W> {
     }
   }
 
-  fn process_event_result(&mut self, result: Option<usize>, ctx: &Context) -> Option<()> {
-    if result.is_some() {
-      let state = self.state.take();
-      let (new_state, result) = match state {
-        Some(State::Headers(header_writer, ResponseBody::File(file_reader))) => {
-          let socket = header_writer.into_writer();
-          let file_reader = ctx.register(file_reader).unwrap();
-          let file_writer = file::ResponseHandler::new(socket, file_reader);
-          (Some(State::FileBody(file_writer)), None)
-        },
-        Some(State::FileBody(file_writer)) => {
-          file_writer.into_reader().into_deregistered(ctx).unwrap();
-          (None, Some( () ))
-        },
-        _ => (None, Some( () ))
-      };
-      self.state = new_state;
-      return result;
-    }
-    else {
-      return None;
+  fn next_state(&mut self, ctx: &Context) -> Option<State<W>> {
+    let state = self.state.take();
+    match state {
+      Some(State::Headers(header_writer, ResponseBody::File(file_reader))) => {
+        let socket = header_writer.into_writer();
+        let file_reader = ctx.register(file_reader).unwrap();
+        let file_writer = file::ResponseHandler::new(socket, file_reader);
+        Some(State::FileBody(file_writer))
+      },
+      Some(State::FileBody(file_writer)) => {
+        file_writer.into_reader().into_deregistered(ctx).unwrap();
+        None
+      },
+      _ => None
     }
   }
 }
@@ -54,8 +47,14 @@ impl<W: Write + AsyncSource> Handler<()> for ResponseWriter<W> {
       Some(State::FileBody(ref mut file_writer)) => {
         file_writer.handle_event(event, ctx)
       },
-      None => Some(0)
+      _ => None
     };
-    self.process_event_result(result, ctx)
+    if result.is_some() { //a subhandler has finished, switch to the next
+      self.state = self.next_state(ctx);
+    }
+    match self.state {
+      Some(_) => None,  //in progress
+      None => Some( () ) // done
+    }
   }
 }
