@@ -8,7 +8,7 @@ use std::ops::Range;
 use std::os::unix::io::{RawFd, AsRawFd};
 use std::os::unix::ffi::OsStrExt;
 use libc;
-use io::{AsyncSource, Token};
+use io::{AsyncSource, EventKind, Token};
 use super::aio;
 use super::owned_fd::OwnedFd;
 
@@ -197,6 +197,10 @@ impl AsyncSource for Reader {
     selector.deregister(
       &mio::unix::EventedFd(&self.event_fd.as_raw_fd())
     )
+  }
+
+  fn is_registered_event_kind(&self, event_kind: EventKind) -> bool {
+    event_kind.is_readable()
   }
 }
 

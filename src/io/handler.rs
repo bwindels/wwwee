@@ -1,16 +1,47 @@
 use super::token::AsyncToken;
 use super::context::Context;
 
-// TODO: make result type an associated type, less typing in type definitions like
-// Registered<Reader, usize> (would become just Registered<Reader>)
+pub struct Event {
+  token: AsyncToken,
+  kind: EventKind
+}
+
+impl Event {
+  pub fn new(token: AsyncToken, kind: EventKind) -> Event {
+    Event { token, kind }
+  }
+
+  pub fn token(&self) -> AsyncToken {
+    self.token
+  }
+
+  pub fn kind(&self) -> EventKind {
+    self.kind
+  }
+}
+
+#[derive(Clone, Copy)]
+pub enum EventKind {
+  Readable,
+  Writable
+}
+
+impl EventKind {
+  pub fn is_readable(self) -> bool {
+    match self {
+      EventKind::Readable => true,
+      _ => false
+    }
+  }
+
+  pub fn is_writable(self) -> bool {
+    match self {
+      EventKind::Writable => true,
+      _ => false
+    }
+  }
+}
+
 pub trait Handler<T> {
-
-  fn readable(&mut self, _token: AsyncToken, _ctx: &Context) -> Option<T> {
-    None
-  }
-
-  fn writable(&mut self, _token: AsyncToken, _ctx: &Context) -> Option<T> {
-    None
-  }
-
+  fn handle_event(&mut self, event: &Event, ctx: &Context) -> Option<T>;
 }

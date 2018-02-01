@@ -62,8 +62,12 @@ where
   S: std::io::Read + std::io::Write
 {
 
-  fn readable(&mut self, _token: io::AsyncToken, ctx: &io::Context) -> Option<Option<ResponseWriter<S>>>
+  fn handle_event(&mut self, event: &io::Event, ctx: &io::Context) -> Option<Option<ResponseWriter<S>>>
   {
+    if !event.kind().is_readable() {
+      return None;
+    }
+
     let bytes_read = {
       let read_buffer = &mut self.read_buffer;
       self.socket.as_mut().map(|socket| {

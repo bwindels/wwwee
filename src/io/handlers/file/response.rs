@@ -1,5 +1,5 @@
 use super::Reader;
-use io::{AsyncToken, Handler, Registered, Context};
+use io::{Event, AsyncSource, Handler, Registered, Context};
 use io::handlers::{send_buffer, SendResult};
 use std::io::Write;
 use std::ops::DerefMut;
@@ -62,23 +62,19 @@ impl<W: Write> ResponseHandler<W> {
   }
 }
 
-impl<W: Write> Handler<usize> for ResponseHandler<W> {
-  fn readable(&mut self, token: AsyncToken, _ctx: &Context) -> Option<usize> {
+impl<W: Write + AsyncSource> Handler<usize> for ResponseHandler<W> {
+  fn handle_event(&mut self, event: &Event, _ctx: &Context) -> Option<usize> {
     //if the socket becomes readable, we don't care (http1)
     //or someone else should handle it (http2)
     //so in here we only handle reading from the file
-    if token == self.reader.token() && self.socket_writeable {
+    if event.token() == self.socket.token() && event.kind().is_writable() {
+      self.socket_writeable = true;
+    }
+    if event.token() == self.socket.token() || event.token() == self.reader.token() {
       self.send_and_request_data()
     }
     else {
-      None  //wait first for socket to become writeable
+      None
     }
-  }
-
-  fn writable(&mut self, _token: AsyncToken, _ctx: &Context) -> Option<usize> {
-    //can only be the socket, we don't register
-    //the file reader eventfd for writeable events 
-    self.socket_writeable = true;
-    self.send_and_request_data()
   }
 }

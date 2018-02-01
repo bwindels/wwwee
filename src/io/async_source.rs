@@ -1,11 +1,12 @@
 use std;
 use mio;
 use std::ops::{Deref, DerefMut};
-use super::{Token, AsyncToken, Context};
+use super::{Token, EventKind, Event, AsyncToken, Context};
 
 pub trait AsyncSource {
   fn register(&mut self, selector: &mio::Poll, token: Token) -> std::io::Result<()>;
   fn deregister(&mut self, selector: &mio::Poll) -> std::io::Result<()>;
+  fn is_registered_event_kind(&self, kind: EventKind) -> bool;
 }
 
 pub struct Registered<R> {
@@ -26,6 +27,10 @@ impl<R: AsyncSource> Registered<R> {
 
   pub fn token(&self) -> AsyncToken {
     self.token
+  }
+
+  pub fn is_source_of(&self, event: &Event) -> bool {
+    event.token() == self.token && self.source.is_registered_event_kind(event.kind())
   }
 }
 

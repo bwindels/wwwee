@@ -1,4 +1,4 @@
-use io::{Handler, Context, Registered, AsyncToken};
+use io::{Handler, AsyncSource, Context, Registered, Event};
 use io::handlers::{buffer, file};
 use std::io::Write;
 use buffer::Buffer;
@@ -45,27 +45,14 @@ impl<W: Write> ResponseWriter<W> {
   }
 }
 
-impl<W: Write> Handler<()> for ResponseWriter<W> {
-  fn readable(&mut self, token: AsyncToken, ctx: &Context) -> Option<()> {
+impl<W: Write + AsyncSource> Handler<()> for ResponseWriter<W> {
+  fn handle_event(&mut self, event: &Event, ctx: &Context) -> Option<()> {
     let result = match self.state {
       Some(State::Headers(ref mut header_writer, _)) => {
-        header_writer.readable(token, ctx)
+        header_writer.handle_event(event, ctx)
       },
       Some(State::FileBody(ref mut file_writer)) => {
-        file_writer.readable(token, ctx)
-      },
-      None => Some(0)
-    };
-    self.process_event_result(result, ctx)
-  }
-
-  fn writable(&mut self, token: AsyncToken, ctx: &Context) -> Option<()> {
-      let result = match self.state {
-      Some(State::Headers(ref mut header_writer, _)) => {
-        header_writer.writable(token, ctx)
-      },
-      Some(State::FileBody(ref mut file_writer)) => {
-        file_writer.writable(token, ctx)
+        file_writer.handle_event(event, ctx)
       },
       None => Some(0)
     };
