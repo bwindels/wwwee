@@ -58,6 +58,7 @@ impl HeaderWriter {
   }
 
   pub fn set_header(&mut self, name: &str, value: &str) -> io::Result<()> {
+    // TODO: escape \r and \n
     write!(&mut self.buffer, "\r\n{}:{}", name, value)
   }
 
@@ -118,6 +119,7 @@ pub struct HeaderValueWriter<'a> {
 }
 
 impl<'a> Write for HeaderValueWriter<'a> {
+  // TODO: escape \r and \n
   fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
     self.buffer.write(buf)
   }
