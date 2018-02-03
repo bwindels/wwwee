@@ -268,8 +268,11 @@ mod tests {
     ).unwrap();
 
     assert_eq!(reader.request_size(), SMALL_MSG.len());
-    let read_bytes = read_single(&mut reader);
-    assert_eq!(read_bytes, SMALL_MSG);
+    {
+      let read_bytes = read_single(&mut reader);
+      assert_eq!(read_bytes, SMALL_MSG);
+    }
+    assert_eq!(reader.try_queue_read().ok(), Some(false)); //EOF
   }
 
   #[test]
