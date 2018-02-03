@@ -3,14 +3,14 @@ pub use self::AsyncToken;
 use std::cell::Cell;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ConnectionId(u32);
+pub struct ConnectionId(pub u32);
 
 #[cfg(target_pointer_width = "64")]
 pub use self::bit64::*;
 #[cfg(target_pointer_width = "64")]
 mod bit64 {
   #[derive(Clone, Copy, Debug, Default, PartialEq)]
-  pub struct AsyncToken(u32);
+  pub struct AsyncToken(pub u32);
 
   // TODO: deal with overflow here
   pub fn next_token(token: AsyncToken) -> AsyncToken {
@@ -33,7 +33,7 @@ use self::bit32::*;
 #[cfg(target_pointer_width = "32")]
 mod bit32 {
   #[derive(Clone, Copy, Debug, Default, PartialEq)]
-  pub struct AsyncToken(u16);
+  pub struct AsyncToken(pub u16);
 
   // TODO: deal with overflow here
   pub fn next_token(token: AsyncToken) -> AsyncToken {
@@ -105,21 +105,21 @@ impl AsyncTokenSource {
 
 #[cfg(test)]
 mod tests {
-  use super::{create_token, split_token};
+  use super::{create_token, split_token, ConnectionId, AsyncToken};
 
   #[test]
   fn test_split() {
-    let token : usize = create_token(5, 2);
+    let token : usize = create_token(ConnectionId(5), AsyncToken(2));
     let (conn_id, async_token) = split_token(token);
-    assert_eq!(conn_id, 5);
-    assert_eq!(async_token, 2);
+    assert_eq!(conn_id, ConnectionId(5));
+    assert_eq!(async_token, AsyncToken(2));
   }
 
   #[test]
   fn test_max_async_token() {
-    let token : usize = create_token(5, 1024);
+    let token : usize = create_token(ConnectionId(5), AsyncToken(1024));
     let (conn_id, async_token) = split_token(token);
-    assert_eq!(conn_id, 5);
-    assert_eq!(async_token, 1024);
+    assert_eq!(conn_id, ConnectionId(5));
+    assert_eq!(async_token, AsyncToken(1024));
   }
 }

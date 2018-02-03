@@ -373,6 +373,7 @@ mod tests {
     use std::mem;
     use std::path::PathBuf;
     use mio;
+    use io::{AsyncSource, Token};
 
     pub fn fixture_path(fixture_path: &str) -> Result<PathBuf, env::VarError> {
       let project_dir = env::var("CARGO_MANIFEST_DIR")?;
@@ -384,7 +385,7 @@ mod tests {
 
     pub fn setup_event_loop(reader: &mut Reader) -> (mio::Events, mio::Poll) {
       let mut poll = mio::Poll::new().unwrap();
-      let token = mio::Token(1);
+      let token = Token::from_mio_token(mio::Token(1));
       reader.register(&mut poll, token).unwrap();
       (mio::Events::with_capacity(1), poll)
     }
