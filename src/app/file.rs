@@ -1,7 +1,7 @@
 use http;
 use io::sources::file;
 use std;
-//use std::io::Write;
+use std::io::Write;
 
 pub struct StaticFileHandler<'a> {
   root_dir: &'a str,
@@ -10,7 +10,7 @@ pub struct StaticFileHandler<'a> {
 
 impl<'a> StaticFileHandler<'a> {
   pub fn new() -> StaticFileHandler<'static> {
-    StaticFileHandler {root_dir: ".", download_file: false}
+    StaticFileHandler {root_dir: ".", download_file: true}
   }
 }
 
@@ -21,19 +21,20 @@ impl<'a> http::RequestHandler for StaticFileHandler <'a> {
     
     //let range = request.headers().content_range;
     //let path = Path::abs_with_root(self.root_dir, request.uri);
-    let path = std::path::Path::new("/home/bwindels/dev/wwwee/test_fixtures/aio/small.txt\0");
+    //let path = std::path::Path::new("/home/bwindels/dev/wwwee/test_fixtures/aio/small.txt\0");
+    let path = std::path::Path::new("/home/bwindels/Downloads/fotokultuur-3acb2d.zip\0");
     let reader = file::Reader::open(path, None)?;
     let mut response = res.respond(http::status::OK)?;
     //response.set_header(Header::ContentLength(content_length));
     response.set_header("Content-Type", "text/plain")?;
     response.set_header_usize("Content-Length", reader.request_size())?;
-    response.finish_with_file(reader)
-/*
-    if (self.download_file) {
-      response.set_header_writer("Content-Disposition", |&mut value| {
-        write!(value, "attachment; filename={}", path.basename())
+
+    if self.download_file {
+      response.set_header_writer("Content-Disposition", |ref mut value| {
+        write!(value, "attachment; filename={}", "fotokultuur-3acb2d.zip")
       })?;
     }
-*/
+
+    response.finish_with_file(reader)
   }
 }
