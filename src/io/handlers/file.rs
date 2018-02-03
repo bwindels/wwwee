@@ -50,7 +50,7 @@ impl<W: Write> FileResponder<W> {
 
     if need_more_data {
       match self.reader.try_queue_read() {
-        Ok(true) | //eof?
+        Ok(false) | //eof?
         Err(_) => return Some(self.total_bytes_sent),
         _ => {}
       };
