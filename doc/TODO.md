@@ -27,9 +27,10 @@
         ~ buffer lifetime errors, trait for Handler needs lifetime annotations?
     - [x] use new server/handlers from main.rs, and remove old module
     - [~] put a trait around Context for easy unit testing of handlers
-    - [ ] implement io::handlers::file::Reader for linux
-    - [ ] implement file responder as io::Handler<()> using io::file::Reader
+    - [x] implement io::handlers::file::Reader for linux
+    - [x] implement file responder as io::Handler<()> using io::file::Reader
       - set TCP_CORK on socket - http://baus.net/on-tcp_cork
+      [ ] find out how to work safely with dynamic paths
     - [ ] don't error out when no response created by read_headers,
       but call read_body once if content-length was set, otherwise error
 
@@ -53,3 +54,4 @@
    - is there any stuff we need to do to prevent XSS?
  - [ ] implement xml parser/writer
  - [ ] implement file upload by streaming to disk
+- logging!
