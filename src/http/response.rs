@@ -65,6 +65,16 @@ impl HeaderWriter {
     write!(&mut self.buffer, "\r\n{}:{}", name, value)
   }
 
+  pub fn set_header_writer<F>(&mut self, name: &str, callback: F)
+    -> io::Result<()>
+    where
+      F: FnOnce(&mut HeaderValueWriter) -> io::Result<()>
+  {
+    write!(&mut self.buffer, "\r\n{}:", name)?;
+    let mut value_writer = HeaderValueWriter { buffer: &mut self.buffer };
+    callback(&mut value_writer)
+  }
+
   pub fn into_body(mut self) -> io::Result<BodyWriter> {
     write!(&mut self.buffer, "\r\n\r\n")?;
     Ok(BodyWriter::new(self.buffer))
@@ -94,6 +104,20 @@ impl BodyWriter {
 }
 
 impl Write for BodyWriter {
+  fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    self.buffer.write(buf)
+  }
+
+  fn flush(&mut self) -> io::Result<()> {
+    self.buffer.flush()
+  }
+}
+
+pub struct HeaderValueWriter<'a> {
+  buffer: &'a mut Buffer
+}
+
+impl<'a> Write for HeaderValueWriter<'a> {
   fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
     self.buffer.write(buf)
   }
