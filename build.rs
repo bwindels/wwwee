@@ -13,7 +13,7 @@ fn main() {
 
   let (cc, ar) = match target.as_str() {
     RPI_RUST_TARGET => {
-      (rpi_cmd("cc", &cwd), rpi_cmd("ar", &cwd))
+      (rpi_cmd("cc", cwd.as_str()), rpi_cmd("ar", cwd.as_str()))
     },
     _ => ("cc".to_owned(), "ar".to_owned())
   };
@@ -31,7 +31,7 @@ fn main() {
   println!("cargo:rustc-link-lib=static=wwwee-aio");
 }
 
-fn rpi_cmd(cmd: &'static str, cwd: &String) -> String {
+fn rpi_cmd(cmd: &'static str, cwd: &str) -> String {
   let mut abs_cmd = String::new();
   write!(abs_cmd,
     "{cwd}/tools/cross_compilers/rpi/arm-bcm2708/{cc_target}/bin/{cc_target}-{cmd}",
