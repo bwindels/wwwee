@@ -1,0 +1,2 @@
+[target.arm-unknown-linux-gnueabihf]
+linker = "tools/cross_compilers/rpi/arm-bcm2708/arm-linux-gnueabihf/bin/arm-linux-gnueabihf-cc"
