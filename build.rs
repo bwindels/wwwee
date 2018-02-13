@@ -1,10 +1,8 @@
 use std::process::Command;
 use std::env;
 use std::path::Path;
-use std::fmt::Write;
 
 const RPI_RUST_TARGET : &'static str = "arm-unknown-linux-gnueabihf";
-const RPI_CC_TARGET : &'static str = "arm-linux-gnueabihf";
 
 fn main() {
   let cwd = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
@@ -32,11 +30,10 @@ fn main() {
 }
 
 fn rpi_cmd(cmd: &'static str, cwd: &str) -> String {
-  let mut abs_cmd = String::new();
-  write!(abs_cmd,
-    "{cwd}/tools/cross_compilers/rpi/arm-bcm2708/{cc_target}/bin/{cc_target}-{cmd}",
+  const RPI_CC_TARGET : &'static str = "arm-linux-gnueabihf";
+  
+  format!("{cwd}/tools/cross_compilers/rpi/arm-bcm2708/{cc_target}/bin/{cc_target}-{cmd}",
     cwd = cwd,
     cc_target = RPI_CC_TARGET,
-    cmd = cmd).unwrap();
-  abs_cmd
+    cmd = cmd)
 }
