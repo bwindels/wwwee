@@ -5,15 +5,15 @@ use std::path::Path;
 const RPI_RUST_TARGET : &'static str = "arm-unknown-linux-gnueabihf";
 
 fn main() {
-  let cwd = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+  let root = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
   let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
   let target = env::var("TARGET").expect("TARGET not set");
 
   let (cc, ar) = match target.as_str() {
-    RPI_RUST_TARGET => {
-      (rpi_cmd("cc", cwd.as_str()), rpi_cmd("ar", cwd.as_str()))
-    },
-    _ => ("cc".to_owned(), "ar".to_owned())
+    RPI_RUST_TARGET =>
+      (rpi_cmd("cc", root.as_str()), rpi_cmd("ar", root.as_str())),
+    _ =>
+      ("cc".to_owned(), "ar".to_owned())
   };
 
   // note that there are a number of downsides to this approach, the comments
@@ -29,11 +29,11 @@ fn main() {
   println!("cargo:rustc-link-lib=static=wwwee-aio");
 }
 
-fn rpi_cmd(cmd: &'static str, cwd: &str) -> String {
+fn rpi_cmd(cmd: &'static str, root: &str) -> String {
   const RPI_CC_TARGET : &'static str = "arm-linux-gnueabihf";
   
-  format!("{cwd}/tools/cross_compilers/rpi/arm-bcm2708/{cc_target}/bin/{cc_target}-{cmd}",
-    cwd = cwd,
+  format!("{root}/tools/cross_compilers/rpi/arm-bcm2708/{cc_target}/bin/{cc_target}-{cmd}",
+    root = root,
     cc_target = RPI_CC_TARGET,
     cmd = cmd)
 }
