@@ -24,12 +24,12 @@ mod bit64 {
   }
 
   pub fn create_token(conn_id: super::ConnectionId, async_token: AsyncToken) -> usize {
-    (async_token.0 as usize) | ((conn_id.0 as usize) << 32)
+    ((async_token.0 & 0xFFFFFFFF) as usize) | ((conn_id.0 as usize) << 32)
   }
 }
 
 #[cfg(target_pointer_width = "32")]
-use self::bit32::*;
+pub use self::bit32::*;
 #[cfg(target_pointer_width = "32")]
 mod bit32 {
   #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -40,14 +40,14 @@ mod bit32 {
     AsyncToken(token.0 + 1)
   }
 
-  pub fn split_token(token: usize) -> (ConnectionId, AsyncToken) {
-    let conn_id = token >> 10;
-    let async_token = token & 0b11_1111_1111;
+  pub fn split_token(token: usize) -> (super::ConnectionId, AsyncToken) {
+    let conn_id = super::ConnectionId( (token >> 10) as u32 );
+    let async_token = AsyncToken( (token & 0b11_1111_1111) as u16 );
     (conn_id, async_token)
   }
 
-  pub fn create_token(conn_id: ConnectionId, async_token: AsyncToken) -> usize {
-    (async_token as usize) | ((conn_id as usize) << 22)
+  pub fn create_token(conn_id: super::ConnectionId, async_token: AsyncToken) -> usize {
+    ((async_token.0 & 0b11_1111_1111) as usize) | ((conn_id.0 as usize) << 10)
   }
 }
 
@@ -117,9 +117,9 @@ mod tests {
 
   #[test]
   fn test_max_async_token() {
-    let token : usize = create_token(ConnectionId(5), AsyncToken(1024));
+    let token : usize = create_token(ConnectionId(5), AsyncToken(1023));
     let (conn_id, async_token) = split_token(token);
     assert_eq!(conn_id, ConnectionId(5));
-    assert_eq!(async_token, AsyncToken(1024));
+    assert_eq!(async_token, AsyncToken(1023));
   }
 }

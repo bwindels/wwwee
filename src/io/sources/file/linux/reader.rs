@@ -46,7 +46,7 @@ impl Reader {
     range: Option<Range<usize>>,
     buffer_size_hint: usize) -> io::Result<Reader>
   {
-    let path_ptr = unsafe { mem::transmute::<*const u8, *const i8>(path.as_os_str().as_bytes().as_ptr()) };
+    let path_ptr = unsafe { mem::transmute::<*const u8, *const libc::c_char>(path.as_os_str().as_bytes().as_ptr()) };
     let file_fd = OwnedFd::from_raw_fd(to_result( unsafe {
       libc::open(
         path_ptr,

@@ -3,9 +3,9 @@ use std::os::unix::io::RawFd;
 use std::time::Duration;
 use std::mem;
 use std::ptr;
+use std::os::raw::c_long;
 use buffer::Buffer;
 use super::ffi;
-
 #[repr(C)]
 #[derive(Default)]
 pub struct Event {
@@ -80,7 +80,7 @@ impl Context {
       };
     let result = unsafe { ffi::io_submit(
       self.ctxp,
-      control_blocks.len() as i64,
+      control_blocks.len() as c_long,
       control_blocks_ptr
     ) };
 
@@ -103,8 +103,8 @@ impl Context {
     
     let timeout = timeout.map(|t| {
       ffi::timespec {
-        tv_sec:  t.as_secs() as i64,
-        tv_nsec: t.subsec_nanos() as i64
+        tv_sec:  t.as_secs() as c_long,
+        tv_nsec: t.subsec_nanos() as c_long
       }
     });
     let timeout_ptr = timeout
@@ -117,8 +117,8 @@ impl Context {
     let count = unsafe {
       ffi::io_getevents(
         self.ctxp,
-        min_events as i64,
-        events.len() as i64,
+        min_events as c_long,
+        events.len() as c_long,
         events_ptr,
         timeout_ptr) as usize
     };
