@@ -1,0 +1,1 @@
+tools/cross_compilers/rpi/arm-bcm2708/arm-linux-gnueabihf/bin/arm-linux-gnueabihf-gdb target/arm-unknown-linux-gnueabihf/debug/wwwee $1
