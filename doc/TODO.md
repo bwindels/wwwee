@@ -34,11 +34,8 @@
     - [ ] don't error out when no response created by read_headers,
       but call read_body once if content-length was set, otherwise error
 
- - [ ] implement json parser/writer
  - [ ] parse/add more headers to common headers
- 	- [ ] implement base64 parser (also support base64url) for basic auth
- - [ ] implement cross-request state
- - [ ] implement cross-application state based on configuration dictionary to support things like persistent sqlite handle
+  - [ ] implement base64 parser (also support base64url) for basic auth
  - security
    - [ ] Basic TLS using https://bearssl.org/
      
@@ -49,6 +46,9 @@
         - [ ] working https client for this to call lets encrypt api
           - [ ] need http client support
           - [ ] need working ca list to work with bearssl
+ - [ ] implement json parser/writer
+ - [ ] implement cross-request state
+ - [ ] implement cross-application state based on configuration dictionary to support things like persistent sqlite handle
    - [ ] HSTS
    - [ ] do we need CORS? is the implemented in the handler or in the connection?
    - is there any stuff we need to do to prevent XSS?
