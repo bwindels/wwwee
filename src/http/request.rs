@@ -66,6 +66,10 @@ impl<'a> Request<'a> {
     }
   }
 
+  pub fn version(&self) -> &'a str {
+    self.request_line.version
+  }
+
   pub fn url(&self) -> &'a str {
     self.request_line.url
   }

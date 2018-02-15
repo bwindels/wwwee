@@ -25,7 +25,7 @@ impl<F, H, D> http::RequestHandler for Router<F, H, D>
     D: http::RequestHandler
 {
   fn read_headers(&mut self, request: &http::Request, res: &http::Responder) -> std::io::Result<Option<http::Response>> {
-    if request.url() == "/download/bigfile.zip" {
+    if request.url() == "/download/" {
       self.big_file.read_headers(request, res)
     }
     else if request.url().starts_with("/hello/") {
@@ -35,7 +35,6 @@ impl<F, H, D> http::RequestHandler for Router<F, H, D>
       self.default.read_headers(request, res)
     }
     else {
-      println!("404: {} {} with host {:?}", request.method(), request.url(), request.headers().host);
       let mut response = res
         .respond(http::status::NOT_FOUND)?;
       response.set_header("Content-Type", "text/plain")?;

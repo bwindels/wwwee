@@ -103,15 +103,18 @@ impl<T, F> Server<T, F>
   }
 
   fn register_connection(&mut self, socket: TcpStream) {
-    if let Some(conn_idx) = self.connections
+    let addr = socket.peer_addr();
+    let free_idx = self.connections
       .iter()
-      .position(|conn| conn.is_none())
+      .position(|conn| conn.is_none());
+
+    if let (Some(conn_idx), Ok(addr)) = (free_idx, addr)
     {
       let conn_id = io::ConnectionId::from_index(conn_idx);
       match self.create_and_register_connection(conn_id, socket) {
         Ok(connection) => {
           self.connections[conn_idx] = Some(connection);
-          println!("added new connection with id {:?}", conn_id);
+          println!("{}/{:?} connected", addr, conn_id);
         },
         Err(err) => {
           println!("error while trying to register handler for connection {:?}: {:?}", conn_id, err);
@@ -119,7 +122,7 @@ impl<T, F> Server<T, F>
       }
     }
     else {
-      println!("too many connections, dropping this one");
+      println!("too many connections or could not get peer addr, dropping this one");
     }
   }
 

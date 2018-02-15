@@ -12,21 +12,36 @@ pub enum ResponseBody {
 }
 
 pub struct Response {
+  meta: ResponseMetaInfo,
   buffer: Buffer,
   body: ResponseBody
 }
 
+pub struct ResponseMetaInfo {
+  pub status: u16
+}
+
+impl ResponseMetaInfo {
+  pub fn from_status(status: u16) -> ResponseMetaInfo {
+    ResponseMetaInfo { status }
+  }
+}
+
 impl Response {
-  pub fn from_buffer(response: Buffer) -> Response {
-    Response {buffer: response, body: ResponseBody::InBuffer}
+  pub fn from_buffer(meta: ResponseMetaInfo, response: Buffer) -> Response {
+    Response {meta, buffer: response, body: ResponseBody::InBuffer}
   }
 
-  pub fn from_file(headers: Buffer, file: file::Reader) -> Response {
-    Response {buffer: headers, body: ResponseBody::File(file)}
+  pub fn from_file(meta: ResponseMetaInfo, headers: Buffer, file: file::Reader) -> Response {
+    Response {meta, buffer: headers, body: ResponseBody::File(file)}
   }
 
   pub fn into_handler<W: Write + AsyncSource>(self, writer: Registered<W>) -> ResponseWriter<W> {
     ResponseWriter::new(writer, self.buffer, self.body)
+  }
+
+  pub fn status_code(&self) -> u16 {
+    self.meta.status
   }
 }
 
@@ -40,22 +55,23 @@ impl<'a> Responder<'a> {
   }
 
   pub fn respond(&self, status: Status) -> io::Result<HeaderWriter> {
-    let buffer = Buffer::new();
-    let mut header_writer = HeaderWriter { buffer };
-    header_writer.write_head(status.0, status.1)?;
-    Ok(header_writer)
+    let mut buffer = Buffer::new();
+    write_head(&mut buffer, status.0, status.1)?;
+    let meta = ResponseMetaInfo { status: status.0 };
+    Ok(HeaderWriter { meta, buffer })
   }
+}
+
+fn write_head(buffer: &mut Buffer, status: u16, description: &str) -> io::Result<()> {
+  write!(buffer, "HTTP/1.1 {} {}", status, description)
 }
 
 pub struct HeaderWriter {
-  buffer: Buffer
+  buffer: Buffer,
+  meta: ResponseMetaInfo
 }
 
 impl HeaderWriter {
-
-  pub fn write_head(&mut self, status: u16, description: &str) -> io::Result<()> {
-    write!(self.buffer, "HTTP/1.1 {} {}", status, description)
-  }
 
   pub fn set_header(&mut self, name: &str, value: &str) -> io::Result<()> {
     // TODO: escape \r and \n
@@ -78,29 +94,30 @@ impl HeaderWriter {
 
   pub fn into_body(mut self) -> io::Result<BodyWriter> {
     write!(&mut self.buffer, "\r\n\r\n")?;
-    Ok(BodyWriter::new(self.buffer))
+    Ok(BodyWriter::new(self.meta, self.buffer))
   }
 
   pub fn finish_with_file(mut self, file: file::Reader) -> io::Result<Option<Response>> {
     write!(&mut self.buffer, "\r\n\r\n")?;
-    Ok(Some(Response::from_file(self.buffer, file)))
+    Ok(Some(Response::from_file(self.meta, self.buffer, file)))
   }
 }
 
 pub struct BodyWriter {
   buffer: Buffer,
+  meta: ResponseMetaInfo,
   len_before_body: usize
 }
 
 impl BodyWriter {
-  fn new(buffer: Buffer) -> BodyWriter {
+  fn new(meta: ResponseMetaInfo, buffer: Buffer) -> BodyWriter {
     let len_before_body = buffer.len();
-    BodyWriter {buffer, len_before_body}
+    BodyWriter {meta, buffer, len_before_body}
   }
 
   pub fn finish(self) -> Response {
-    println!("Content-Length should be {}", self.buffer.len() - self.len_before_body);
-    Response::from_buffer(self.buffer)
+    //println!("Content-Length should be {}", self.buffer.len() - self.len_before_body);
+    Response::from_buffer(self.meta, self.buffer)
   }
 }
 

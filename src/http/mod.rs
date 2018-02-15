@@ -20,6 +20,7 @@ pub use self::response::{Responder, Response};
 pub use self::request_handler::RequestHandler;
 
 mod internal {
+  pub use super::response::ResponseMetaInfo;
   pub use super::response_writer::ResponseWriter;
   pub use super::header_body_splitter::HeaderBodySplitter;
   pub use super::response::ResponseBody;

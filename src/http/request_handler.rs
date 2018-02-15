@@ -126,10 +126,9 @@ fn handle_no_response() -> Response {
   let response = b"HTTP/1.1 500\r\n\r\nNo response";
   let mut buffer = Buffer::new();
   buffer.write(response);
-  Response::from_buffer(buffer)
+  Response::from_buffer(ResponseMetaInfo::from_status(500), buffer)
 }
 
-#[allow(unused_must_use)]
 fn handle_io_error(err: std::io::Error, responder: &Responder) -> Option<Response> {
   let mut resp = responder.respond(status::INTERNAL_SERVER_ERROR).ok()?;
   /*let msg = match err.kind() {
@@ -138,11 +137,10 @@ fn handle_io_error(err: std::io::Error, responder: &Responder) -> Option<Respons
   };*/
   resp.set_header("Content-Type", "text/plain").ok()?;
   let mut body = resp.into_body().ok()?;
-  write!(body, "io error: {:?}", err);
+  write!(body, "io error: {:?}", err).ok()?;
   Some(body.finish())
 }
 
-#[allow(unused_must_use)]
 fn handle_request_error(err: RequestError, responder: &Responder) -> Option<Response> {
   let mut resp = responder.respond(status::BAD_REQUEST).ok()?;
   let msg = match err {
@@ -151,8 +149,8 @@ fn handle_request_error(err: RequestError, responder: &Responder) -> Option<Resp
     RequestError::InvalidEncoding => "Request not encoded with UTF8",
     RequestError::UrlEncodedNul => "URL encoded value contains NUL character"
   };
-  resp.set_header("Content-Type", "text/plain");
+  resp.set_header("Content-Type", "text/plain").ok()?;
   let mut body = resp.into_body().ok()?;
-  write!(body, "{}", msg);
+  write!(body, "{}", msg).ok()?;
   Some(body.finish())
 }
