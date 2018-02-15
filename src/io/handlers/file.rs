@@ -40,7 +40,7 @@ impl<W: Write> FileResponder<W> {
           true
         },
         SendResult::IoError(_) => {
-          return Some(self.total_bytes_sent);
+          return Some(self.total_bytes_sent + self.buffer_bytes_sent);
         }
       }
     }
@@ -54,12 +54,13 @@ impl<W: Write> FileResponder<W> {
 
       match self.reader.try_queue_read() {
         Ok(false) | //eof
-        Err(_) => return Some(self.total_bytes_sent),
-        Ok(true) => {}
-      };
+        Err(_) => Some(self.total_bytes_sent),
+        Ok(true) => None
+      }
     }
-    
-    return None;
+    else {
+      None
+    }
   }
 
   pub fn into_parts(self) -> (Registered<Reader>, Registered<W>) {
