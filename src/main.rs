@@ -17,6 +17,9 @@ use server::Server;
 use http::request_handler::Handler;
 
 fn main() {
+  #[cfg(debug_assertions)]
+  set_dump_core_on_panic();
+
   let addr = "0.0.0.0:8080".parse().unwrap();
   let handler_creator = |socket| {
     let index_handler = app::StaticFileHandler::new("./www/index.html\0", "text/html", None);
@@ -29,4 +32,16 @@ fn main() {
   };
   let mut server = Server::new(addr, handler_creator).unwrap();
   server.start().unwrap();
+}
+
+#[cfg(debug_assertions)]
+fn set_dump_core_on_panic() {
+  let prev_hook = std::panic::take_hook();
+
+  std::panic::set_hook(Box::new(move |panic_info| {
+    prev_hook(panic_info);
+    let pid = unsafe { libc::getpid() };
+    println!("pid {}", pid);
+    unsafe { libc::kill(pid, libc::SIGABRT) };
+  }));
 }
