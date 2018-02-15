@@ -5,3 +5,5 @@ Cargo.lock
 /target/
 **/*.rs.bk
 .DS_Store
+wwwee.sublime-project
+wwwee.sublime-workspace
