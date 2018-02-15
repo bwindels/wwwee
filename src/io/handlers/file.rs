@@ -49,10 +49,13 @@ impl<W: Write> FileResponder<W> {
     };
 
     if need_more_data {
+      self.total_bytes_sent += self.buffer_bytes_sent;
+      self.buffer_bytes_sent = 0;
+
       match self.reader.try_queue_read() {
-        Ok(false) | //eof?
+        Ok(false) | //eof
         Err(_) => return Some(self.total_bytes_sent),
-        _ => {}
+        Ok(true) => {}
       };
     }
     
