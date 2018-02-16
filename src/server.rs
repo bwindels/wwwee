@@ -64,9 +64,7 @@ impl<T, F> Server<T, F>
   fn process_events(&mut self, events: &mio::Events) {
     for event in events.iter() {
         if event.token() == SERVER_TOKEN {
-          if let Ok((socket, _)) = self.server_socket.accept() {
-            self.register_connection(socket);
-          }
+          self.accept_connections();
         }
         else {
           if let Some(conn_idx) = self.handle_event(&event) {
@@ -74,6 +72,25 @@ impl<T, F> Server<T, F>
           }
         }
       }
+  }
+
+  fn accept_connections(&mut self) {
+    let mut would_block = false;
+    while !would_block {
+      match self.server_socket.accept() {
+        Ok((socket, _)) => self.register_connection(socket),
+        Err(err) => {
+          match err.kind() {
+            std::io::ErrorKind::WouldBlock => would_block = true,
+            std::io::ErrorKind::Interrupted => {},  //retry
+            _ => {
+              would_block = true;
+              println!("unexpected error while trying to accept connection: {:?}", err);
+            }
+          }
+        }
+      }
+    }
   }
 
   fn handle_event(&mut self, event: &mio::Event) -> Option<usize> {
