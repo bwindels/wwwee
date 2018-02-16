@@ -63,15 +63,15 @@ impl<T, F> Server<T, F>
 
   fn process_events(&mut self, events: &mio::Events) {
     for event in events.iter() {
-        if event.token() == SERVER_TOKEN {
-          self.accept_connections();
-        }
-        else {
-          if let Some(conn_idx) = self.handle_event(&event) {
-            self.connections[conn_idx] = None;
-          }
+      if event.token() == SERVER_TOKEN {
+        self.accept_connections();
+      }
+      else {
+        if let Some(conn_idx) = self.handle_event(&event) {
+          self.connections[conn_idx] = None;
         }
       }
+    }
   }
 
   fn accept_connections(&mut self) {
@@ -89,7 +89,7 @@ impl<T, F> Server<T, F>
             }
           }
         }
-      }
+      };
     }
   }
 

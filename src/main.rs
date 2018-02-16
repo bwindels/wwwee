@@ -26,8 +26,9 @@ fn main() {
   let handler_creator = |socket| {
     let index_handler = app::StaticFileHandler::new("./www/index.html\0", "text/html", None);
     let big_file = app::StaticFileHandler::new("./www/bigfile.img\0", "application/octet-stream", Some("raspbian.img"));
+    let image = app::StaticFileHandler::new("./www/image.jpg\0", "image/jpeg", None);
     let hello_world = app::HelloWorld::new();
-    let router = app::Router::new(index_handler, hello_world, big_file);
+    let router = app::Router::new(index_handler, hello_world, big_file, image);
     let logger = app::Logger::new(router);
     QueryConnection::new(Handler::new(logger, socket))
     //QueryConnection::new(Handler::new(app::StaticFileHandler::new(), socket))
