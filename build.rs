@@ -16,17 +16,21 @@ fn main() {
       ("cc".to_owned(), "ar".to_owned())
   };
 
-  // note that there are a number of downsides to this approach, the comments
-  // below detail how to improve the portability of these commands.
+  
   Command::new(cc.as_str()).args(&["src/io/sources/file/linux/aio.c", "-c", "-fPIC", "-o"])
-                     .arg(&format!("{}/aio.o", out_dir))
-                     .status().expect("cc failed");
+    .arg(&format!("{}/aio.o", out_dir))
+    .status().expect("cc failed");
   Command::new(ar.as_str()).args(&["crus", "libwwwee-aio.a", "aio.o"])
-                    .current_dir(&Path::new(&out_dir))
-                    .status().expect("ar failed");
+    .current_dir(&Path::new(&out_dir))
+    .status().expect("ar failed");
 
   println!("cargo:rustc-link-search=native={}", out_dir);
   println!("cargo:rustc-link-lib=static=wwwee-aio");
+
+  let git_output = Command::new("git").args(&["rev-parse", "HEAD"])
+    .output().expect("getting git hash failed, git meta data missing?");
+  let git_hash = String::from_utf8(git_output.stdout).unwrap();
+  println!("cargo:rustc-env=GIT_HASH={}", git_hash);
 }
 
 fn rpi_cmd(cmd: &'static str, root: &str) -> String {

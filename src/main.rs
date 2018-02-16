@@ -16,6 +16,8 @@ use query_connection::QueryConnection;
 use server::Server;
 use http::request_handler::Handler;
 
+pub const GIT_HASH : &'static str = env!("GIT_HASH");
+
 fn main() {
   #[cfg(debug_assertions)]
   set_dump_core_on_panic();
@@ -31,6 +33,7 @@ fn main() {
     //QueryConnection::new(Handler::new(app::StaticFileHandler::new(), socket))
   };
   let mut server = Server::new(addr, handler_creator).unwrap();
+  println!("server version {} running ...", GIT_HASH);
   server.start().unwrap();
 }
 
@@ -41,7 +44,7 @@ fn set_dump_core_on_panic() {
   std::panic::set_hook(Box::new(move |panic_info| {
     prev_hook(panic_info);
     let pid = unsafe { libc::getpid() };
-    println!("pid {}", pid);
+    println!("pid {}, build git hash: {}", pid, GIT_HASH);
     unsafe { libc::kill(pid, libc::SIGABRT) };
   }));
 }
