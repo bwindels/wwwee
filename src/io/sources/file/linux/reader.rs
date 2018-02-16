@@ -16,11 +16,16 @@ const SWITCHING_ERROR_MSG : &'static str = "stuck on previous error";
 // ~400Kb, good size determined through testing ext4 and xfs
 const BUFFER_MAX_SIZE : usize = 400_000;
 
+struct ReadResult {
+  pub buffer: Buffer,
+  pub offset_block_idx: usize
+}
+
 enum ReadState {
-  Ready(Buffer),
+  Ready(ReadResult),
   Reading(aio::Operation),
   Switching,
-  EndReached(Buffer)
+  EndReached(ReadResult)
 }
 
 pub struct Reader {
@@ -71,7 +76,7 @@ impl Reader {
     let event_fd = OwnedFd::from_raw_fd(to_result(unsafe { libc::eventfd(0, libc::EFD_NONBLOCK) } )? as RawFd);
 
     Ok(Reader {
-      read_state: ReadState::Ready(buffer),
+      read_state: ReadState::Ready(ReadResult{buffer, offset_block_idx: 0}),
       io_ctx,
       file_fd,
       event_fd,
@@ -87,7 +92,7 @@ impl Reader {
       ReadState::Ready(_) => {
         let read_state = mem::replace(&mut self.read_state, ReadState::Switching);
         let buffer = match read_state {
-          ReadState::Ready(buffer) => buffer,
+          ReadState::Ready(result) => result.buffer,
           _ => unreachable!()
         };
         let mut read_op = aio::Operation::create_read(
@@ -107,21 +112,21 @@ impl Reader {
   }
 
   pub fn try_get_read_bytes<'a>(&'a mut self) -> io::Result<&'a mut [u8]> {
-    let read_block_idx = self.block_index;
     self.finish_read()?;
     match self.read_state {
-      ReadState::Ready(ref mut buffer) |
-      ReadState::EndReached(ref mut buffer) => {
+      ReadState::Ready(ref mut result) |
+      ReadState::EndReached(ref mut result) => {
         let mut offset = 0;
 
         let start_block_idx = self.range.start / self.block_size;
-        if read_block_idx == start_block_idx {
+        if result.offset_block_idx == start_block_idx {
           offset = self.range.start % self.block_size;
         }
 
-        let end_idx = cmp::min(buffer.len(), self.range.end - (read_block_idx * self.block_size));
+        let current_read_offset = result.offset_block_idx * self.block_size;
+        let end_idx = cmp::min(result.buffer.len(), self.range.end - current_read_offset);
         
-        Ok(&mut buffer.as_mut_slice()[offset .. end_idx])
+        Ok(&mut result.buffer.as_mut_slice()[offset .. end_idx])
       },
       ReadState::Reading(_) => Err(io::Error::new(io::ErrorKind::WouldBlock, "read operation has not finished yet")),
       ReadState::Switching => Err(io::Error::new(io::ErrorKind::Other, SWITCHING_ERROR_MSG)),
@@ -132,6 +137,7 @@ impl Reader {
     self.range.end - self.range.start
   }
 
+  #[cfg(test)]
   pub fn block_size(&self) -> usize {
     self.block_size
   }
@@ -171,10 +177,11 @@ impl Reader {
         };
         let buffer = op.into_read_result(read_event)?;
         match self.next_block_index(buffer.len(), buffer.capacity())? {
-          None => self.read_state = ReadState::EndReached(buffer),
+          None => self.read_state = ReadState::EndReached(ReadResult{buffer, offset_block_idx: self.block_index}),
           Some(idx) => {
+            let old_block_idx = self.block_index;
             self.block_index = idx;
-            self.read_state = ReadState::Ready(buffer)
+            self.read_state = ReadState::Ready(ReadResult{buffer, offset_block_idx: old_block_idx})
           }
         }
       }
@@ -254,6 +261,7 @@ fn buffer_size(file_stats: &libc::stat64, range: &Range<usize>, buffer_size_hint
 mod tests {
   use super::Reader;
   use self::helpers::*;
+  use io::AsyncSource;
 
   //contents of the small.txt fixture file
   const SMALL_MSG : &'static [u8] = b"try reading this with direct IO";
@@ -345,7 +353,27 @@ mod tests {
         counter += 1;
       });
     });
-    assert_eq!(counter, 4608);
+    assert_eq!(counter, 4608);  
+  }
+
+  #[test]
+  fn test_u16_inc_buffer_same_size_within_request() {
+    let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
+    let mut reader = Reader::new_with_buffer_size_hint(
+      path.as_path(),
+      None,
+      100
+    ).unwrap();
+    let (mut events, mut poll) = setup_event_loop(&mut reader);
+    while reader.try_queue_read().unwrap() {
+      //wait for read operation to finish
+      poll.poll(&mut events, None).unwrap();
+      
+      let first_len = reader.try_get_read_bytes().unwrap().len();
+      let second_len = reader.try_get_read_bytes().unwrap().len();
+      assert_eq!(first_len, second_len);
+    }
+    reader.deregister(&mut poll).unwrap();
   }
 
   #[test]
