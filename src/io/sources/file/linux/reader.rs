@@ -75,6 +75,7 @@ impl Reader {
     let io_ctx = aio::Context::setup(1)?;
     let event_fd = OwnedFd::from_raw_fd(to_result(unsafe { libc::eventfd(0, libc::EFD_NONBLOCK) } )? as RawFd);
 
+    //TODO: introduce NotStarted state, calling try_get_read_bytes before try_queue_read like this would not work well I think
     Ok(Reader {
       read_state: ReadState::Ready(ReadResult{buffer, offset_block_idx: 0}),
       io_ctx,
@@ -147,6 +148,7 @@ impl Reader {
   }
 
   fn next_block_index(&self, returned_len: usize, requested_len: usize) -> io::Result<Option<usize>> {
+    //TODO: if the range is a multiple of the buffer capacity, we'd probably queue a read too much, and maybe even exhibit incorrect behaviour
     if returned_len == requested_len {
       let next_index = self.block_index + (returned_len / self.block_size);
       Ok( Some(next_index) )
