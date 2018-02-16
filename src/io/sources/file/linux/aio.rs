@@ -6,7 +6,7 @@ use std::mem;
 use std::ptr;
 use std::os::raw::c_long;
 use buffer::Buffer;
-use super::ffi;
+use super::{ffi, to_result};
 #[repr(C)]
 #[derive(Default)]
 pub struct Event {
@@ -67,13 +67,8 @@ impl Context {
 
   pub fn setup(max_operations: u32) -> io::Result<Context> {
     let mut ctxp: ffi::aio_context_t = 0;
-    let result = unsafe { ffi::io_setup(max_operations, &mut ctxp) };
-    if result == -1 {
-      Err(io::Error::last_os_error())
-    }
-    else {
-      Ok(Context {ctxp})
-    }
+    let setup_result = to_result(unsafe { ffi::io_setup(max_operations, &mut ctxp) });
+    setup_result.map(|_| Context {ctxp})
   }
 
   pub fn submit(&self, control_blocks: &[&ffi::iocb]) -> io::Result<usize> {
@@ -81,18 +76,14 @@ impl Context {
       unsafe { 
         mem::transmute::<*const &ffi::iocb, *mut *mut ffi::iocb>(control_blocks.as_ptr())
       };
-    let result = unsafe { ffi::io_submit(
-      self.ctxp,
-      control_blocks.len() as c_long,
-      control_blocks_ptr
-    ) };
-
-    if result == -1 {
-      Err(io::Error::last_os_error())
-    }
-    else {
-      Ok(result as usize)
-    }
+    let amount_submitted = to_result(unsafe {
+      ffi::io_submit(
+        self.ctxp,
+        control_blocks.len() as c_long,
+        control_blocks_ptr
+      )
+    });
+    amount_submitted.map(|n| n as usize)
   }
 
   /*
