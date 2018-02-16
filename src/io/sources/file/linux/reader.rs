@@ -10,7 +10,7 @@ use std::os::unix::ffi::OsStrExt;
 use libc;
 use io::{AsyncSource, EventKind, Token};
 use super::owned_fd::OwnedFd;
-use super::requestrange::{ReadRangeConfig, ReadRange};
+use super::readrange::{ReadRangeConfig, ReadRange};
 use super::{aio, bytes_as_block_count, to_result};
 // ~400Kb, good size determined through testing ext4 and xfs
 const BUFFER_MAX_SIZE : usize = 400_000;
