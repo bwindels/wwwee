@@ -265,8 +265,7 @@ mod tests {
   use self::helpers::*;
   use io::AsyncSource;
 
-  //contents of the small.txt fixture file
-  const SMALL_MSG : &'static [u8] = b"try reading this with direct IO";
+  const SMALL_MSG : &'static [u8] = include_bytes!("../../../../../test_fixtures/aio/small.txt");
 
   #[test]
   fn test_small_read_all() {
