@@ -32,7 +32,7 @@ impl<'a> http::RequestHandler for StaticFileHandler <'a> {
     let mut response = res.respond(http::status::OK)?;
     //response.set_header(Header::ContentLength(content_length));
     response.set_header("Content-Type", self.content_type)?;
-    response.set_header_usize("Content-Length", reader.request_size())?;
+    response.set_header_usize("Content-Length", reader.request_size()?)?;
 
     if let Some(filename) = self.download_as {
       response.set_header_writer("Content-Disposition", |ref mut value| {

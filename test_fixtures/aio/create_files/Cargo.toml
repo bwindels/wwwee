@@ -1,0 +1,7 @@
+[package]
+name = "create_files"
+version = "0.1.0"
+authors = ["Bruno Windels <bruno.windels@gmail.com>"]
+
+[dependencies]
+libc = "0.2.34"

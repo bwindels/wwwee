@@ -9,33 +9,23 @@ use std::os::unix::io::{RawFd, AsRawFd};
 use std::os::unix::ffi::OsStrExt;
 use libc;
 use io::{AsyncSource, EventKind, Token};
-use super::aio;
 use super::owned_fd::OwnedFd;
-
-const SWITCHING_ERROR_MSG : &'static str = "stuck on previous error";
+use super::requestrange::{ReadRangeConfig, ReadRange};
+use super::{aio, bytes_as_block_count, to_result};
 // ~400Kb, good size determined through testing ext4 and xfs
 const BUFFER_MAX_SIZE : usize = 400_000;
 
-struct ReadResult {
-  pub buffer: Buffer,
-  pub offset_block_idx: usize
-}
-
-enum ReadState {
-  Ready(ReadResult),
-  Reading(aio::Operation),
-  Switching,
-  EndReached(ReadResult)
+enum OperationState {
+  NotStarted(ReadRangeConfig, Buffer),
+  Ready(ReadRange, Buffer),
+  Reading(ReadRange, aio::Operation)
 }
 
 pub struct Reader {
-  read_state: ReadState,
+  state: Option<OperationState>,
   file_fd: OwnedFd,
   event_fd: OwnedFd,
-  io_ctx: aio::Context,
-  range: Range<usize>,
-  block_size: usize,
-  block_index: usize
+  io_ctx: aio::Context
 }
 
 impl Reader {
@@ -61,6 +51,7 @@ impl Reader {
         libc::O_NONBLOCK
       )
     } )? as RawFd);
+
     let file_stats = stat(file_fd.as_raw_fd())?;
     
     if !is_regular_file(&file_stats) {
@@ -68,125 +59,129 @@ impl Reader {
     }
 
     let range = normalize_range(&file_stats, range);
-    let buffer = Buffer::page_sized_aligned(buffer_size(&file_stats, &range, buffer_size_hint));
+    let buffer_block_capacity = buffer_block_size(&file_stats, &range, buffer_size_hint);
     let block_size = file_stats.st_blksize as usize;
-    let block_index = range.start / block_size;
+    let buffer = Buffer::page_sized_aligned(buffer_block_capacity * block_size);
+    let range_cfg = ReadRangeConfig::new(
+      range, block_size as u16,
+      buffer_block_capacity as u16);
 
     let io_ctx = aio::Context::setup(1)?;
-    let event_fd = OwnedFd::from_raw_fd(to_result(unsafe { libc::eventfd(0, libc::EFD_NONBLOCK) } )? as RawFd);
+    let event_fd = OwnedFd::from_raw_fd(to_result(unsafe {
+      libc::eventfd(0, libc::EFD_NONBLOCK)
+    } )? as RawFd);
 
-    //TODO: introduce NotStarted state, calling try_get_read_bytes before try_queue_read like this would not work well I think
     Ok(Reader {
-      read_state: ReadState::Ready(ReadResult{buffer, offset_block_idx: 0}),
+      state: Some(OperationState::NotStarted(range_cfg, buffer)),
       io_ctx,
       file_fd,
-      event_fd,
-      block_size,
-      block_index,
-      range
+      event_fd
     })
   }
+
   /// returns: bool: whether the end hasn't been
   ///   reached yet and a new operation was queued
   pub fn try_queue_read(&mut self) -> io::Result<bool> {
-    match self.read_state {
-      ReadState::Ready(_) => {
-        let read_state = mem::replace(&mut self.read_state, ReadState::Switching);
-        let buffer = match read_state {
-          ReadState::Ready(result) => result.buffer,
-          _ => unreachable!()
-        };
-        let mut read_op = aio::Operation::create_read(
-          self.file_fd.as_raw_fd(),
-          self.current_offset(),
-          buffer
-        );
-        read_op.set_event_fd(self.event_fd.as_raw_fd());
-        self.io_ctx.submit([read_op.as_iocb()].as_ref())?;
-        self.read_state = ReadState::Reading(read_op);
-        Ok(true)
+    let state = self.state.take();
+    let new_state = match state {
+      Some(OperationState::NotStarted(range_cfg, buffer)) => {
+        range_cfg.first_range().map(|r| {
+          let op = self.queue_read_operation(r.operation_range(), buffer)?;
+          Ok(OperationState::Reading(r, op))
+        })
       },
-      ReadState::Reading(_) => Ok(true),
-      ReadState::Switching => Err(io::Error::new(io::ErrorKind::Other, SWITCHING_ERROR_MSG)),
-      ReadState::EndReached(_) => Ok(false)
-    }
+      Some(OperationState::Ready(range, buffer)) => {
+        range.next().map(|r| {
+          let op = self.queue_read_operation(r.operation_range(), buffer)?;
+          Ok(OperationState::Reading(r, op))
+        })
+      },
+      Some(s) => Some(Ok(s)),
+      None => None
+    };
+    self.assign_state_or_err(new_state)
+      .map(|_| self.state.is_some()) //is some when not eof
   }
 
   pub fn try_get_read_bytes<'a>(&'a mut self) -> io::Result<&'a mut [u8]> {
     self.finish_read()?;
-    match self.read_state {
-      ReadState::Ready(ref mut result) |
-      ReadState::EndReached(ref mut result) => {
-        let mut offset = 0;
-
-        let start_block_idx = self.range.start / self.block_size;
-        if result.offset_block_idx == start_block_idx {
-          offset = self.range.start % self.block_size;
-        }
-
-        let current_read_offset = result.offset_block_idx * self.block_size;
-        let end_idx = cmp::min(result.buffer.len(), self.range.end - current_read_offset);
-        
-        Ok(&mut result.buffer.as_mut_slice()[offset .. end_idx])
+    match self.state {
+      Some(OperationState::Ready(ref range, ref mut buffer)) => {
+        Ok(&mut buffer.as_mut_slice()[range.buffer_range()])
       },
-      ReadState::Reading(_) => Err(io::Error::new(io::ErrorKind::WouldBlock, "read operation has not finished yet")),
-      ReadState::Switching => Err(io::Error::new(io::ErrorKind::Other, SWITCHING_ERROR_MSG)),
+      Some(OperationState::Reading(_, _)) => {
+        Err(io::Error::new(io::ErrorKind::WouldBlock, "read has not finished yet"))
+      },
+      Some(OperationState::NotStarted(_, _)) => {
+        Err(io::Error::new(io::ErrorKind::Other, "no read was queued")) 
+      }
+      None => Err(io::Error::new(io::ErrorKind::Other, "previous error or eof"))
     }
   }
 
-  pub fn request_size(&self) -> usize {
-    self.range.end - self.range.start
+  /// returns an error after eof or a previous error was
+  /// returned from try_queue_read or try_get_read_bytes
+  pub fn request_size(&self) -> io::Result<usize> {
+    match self.state {
+      Some(OperationState::Ready(ref range, _)) |
+      Some(OperationState::Reading(ref range, _)) => {
+        let r = range.total_range();
+        Ok(r.end - r.start)
+      },
+      Some(OperationState::NotStarted(ref range_cfg, _)) => {
+        let r = range_cfg.total_range();
+        Ok(r.end - r.start)
+      }
+      None => Err(io::Error::new(io::ErrorKind::Other, "previous error or eof"))
+    }
   }
 
   #[cfg(test)]
-  pub fn block_size(&self) -> usize {
-    self.block_size
+  pub fn block_size(&self) -> Option<usize> {
+    match self.state {
+      Some(OperationState::NotStarted(ref range_cfg, _)) => {
+        Some(range_cfg.block_size())
+      }
+      _ => None
+    }
   }
 
-  fn current_offset(&self) -> usize {
-    self.block_size * self.block_index
-  }
-
-  fn next_block_index(&self, returned_len: usize, requested_len: usize) -> io::Result<Option<usize>> {
-    //TODO: if the range is a multiple of the buffer capacity, we'd probably queue a read too much, and maybe even exhibit incorrect behaviour
-    if returned_len == requested_len {
-      let next_index = self.block_index + (returned_len / self.block_size);
-      Ok( Some(next_index) )
-    }
-    else {
-      let total_requested_len = (self.block_index * self.block_size) + returned_len;
-      if total_requested_len >= self.range.end {
-        Ok(None)
-      }
-      else {
-        Err(io::Error::new(io::ErrorKind::UnexpectedEof, "didn't receive a full buffer before end of range was reached"))
-      }
-    }
+  fn queue_read_operation(&self, block_aligned_range: Range<usize>, buffer: Buffer) -> io::Result<aio::Operation> {
+    let mut read_op = aio::Operation::create_read(
+      self.file_fd.as_raw_fd(),
+      block_aligned_range,
+      buffer
+    );
+    read_op.set_event_fd(self.event_fd.as_raw_fd());
+    self.io_ctx.submit([read_op.as_iocb()].as_ref())?;
+    Ok(read_op)
   }
 
   fn finish_read(&mut self) -> io::Result<()> {
-    // when reading, try to finish the read operation
-    if let ReadState::Reading(_) = self.read_state {
-      let mut event_storage = [aio::Event::default()];
-      let events = self.io_ctx.get_events(1, event_storage.as_mut(), None);
-      if let Some(read_event) = events.get(0) {
-        let op = {
-          let read_state = mem::replace(&mut self.read_state, ReadState::Switching);
-          match read_state {
-            ReadState::Reading(op) => op,
-            _ => unreachable!() //can never happen because first if
-          }
-        };
-        let buffer = op.into_read_result(read_event)?;
-        match self.next_block_index(buffer.len(), buffer.capacity())? {
-          None => self.read_state = ReadState::EndReached(ReadResult{buffer, offset_block_idx: self.block_index}),
-          Some(idx) => {
-            let old_block_idx = self.block_index;
-            self.block_index = idx;
-            self.read_state = ReadState::Ready(ReadResult{buffer, offset_block_idx: old_block_idx})
-          }
-        }
-      }
+    let state = self.state.take();
+    let new_state = match state {
+      Some(OperationState::Reading(range, op)) => {
+        let mut event_storage = [aio::Event::default()];
+        let events = self.io_ctx.get_events(1, event_storage.as_mut(), None);
+        let event_result = events.get(0)
+          .ok_or(io::Error::new(io::ErrorKind::Other, "no aio event"));
+        Some(event_result.and_then(|read_event| {
+          let buffer = op.into_read_result(read_event)?;
+          Ok(OperationState::Ready(range, buffer))
+        }))
+      },
+      Some(s) => Some(Ok(s)),
+      None => None
+    };
+    self.assign_state_or_err(new_state)
+  }
+
+  fn assign_state_or_err(&mut self, new_state: Option<io::Result<OperationState>>) -> io::Result<()> {
+    if let Some(s) = new_state {
+      self.state = Some(s?);
+    }
+    else {
+      self.state = None;
     }
     Ok( () )
   }
@@ -213,15 +208,6 @@ impl AsyncSource for Reader {
   }
 }
 
-fn to_result(handle: libc::c_int) -> io::Result<libc::c_int> {
-  if handle == -1 {
-    Err(io::Error::last_os_error())
-  }
-  else {
-    Ok(handle)
-  }
-}
-
 fn stat(fd: RawFd) -> io::Result<libc::stat64> {
   let mut file_stats : libc::stat64 = unsafe { mem::zeroed() };
   let success = unsafe {
@@ -234,14 +220,6 @@ fn is_regular_file(file_stats: &libc::stat64) -> bool {
   (file_stats.st_mode & libc::S_IFMT) == libc::S_IFREG
 }
 
-fn chunk_count(total_size: usize, chunk_size: usize) -> usize {
-  let mut chunks = total_size / chunk_size;
-  if total_size % chunk_size != 0 {
-    chunks += 1;
-  }
-  chunks
-}
-
 fn normalize_range(file_stats: &libc::stat64, range: Option<Range<usize>>) -> Range<usize> {
   let file_size = file_stats.st_size as usize;
   let range = range.unwrap_or(0 .. file_size);
@@ -250,12 +228,11 @@ fn normalize_range(file_stats: &libc::stat64, range: Option<Range<usize>>) -> Ra
   start .. end
 }
 
-fn buffer_size(file_stats: &libc::stat64, range: &Range<usize>, buffer_size_hint: usize) -> usize {
+fn buffer_block_size(file_stats: &libc::stat64, range: &Range<usize>, buffer_size_hint: usize) -> usize {
   let total_size = range.end - range.start;
   let buffer_min_size = cmp::min(buffer_size_hint, total_size);
   let block_size = file_stats.st_blksize as usize;
-  let blocks_per_read = chunk_count(buffer_min_size, block_size);
-  blocks_per_read * block_size
+  bytes_as_block_count(buffer_min_size, block_size as u16)
 }
 
 
@@ -265,7 +242,8 @@ mod tests {
   use self::helpers::*;
   use io::AsyncSource;
 
-  const SMALL_MSG : &'static [u8] = include_bytes!("../../../../../test_fixtures/aio/small.txt");
+  const SMALL_MSG : &'static [u8] =
+    include_bytes!("../../../../../test_fixtures/aio/small.txt");
 
   #[test]
   fn test_small_read_all() {
@@ -276,7 +254,7 @@ mod tests {
       100
     ).unwrap();
 
-    assert_eq!(reader.request_size(), SMALL_MSG.len());
+    assert_eq!(reader.request_size().unwrap(), SMALL_MSG.len());
     {
       let read_bytes = read_single(&mut reader);
       assert_eq!(read_bytes, SMALL_MSG);
@@ -294,7 +272,7 @@ mod tests {
     ).unwrap();
 
     let mut counter = 0;
-    assert_eq!(reader.request_size(), SMALL_MSG.len());
+    assert_eq!(reader.request_size().unwrap(), SMALL_MSG.len());
     read_until_end(reader, |bytes| {
       assert_eq!(bytes, SMALL_MSG);
       counter += 1;
@@ -313,7 +291,7 @@ mod tests {
       100
     ).unwrap();
 
-    assert_eq!(reader.request_size(), msg.len());
+    assert_eq!(reader.request_size().unwrap(), msg.len());
     let read_bytes = read_single(&mut reader);
     assert_eq!(read_bytes, msg);
   }
@@ -399,6 +377,24 @@ mod tests {
     assert_eq!(request_counter, 3);
   }
 
+  #[test]
+  fn test_2blocks_read_all() {
+    let path = fixture_path("aio/2-blocks-one.bin\0").unwrap();
+    let reader = Reader::new_with_buffer_size_hint(
+      path.as_path(),
+      None,
+      1
+    ).unwrap();
+
+    let block_size = reader.block_size().unwrap();
+    let mut request_counter = 0usize;
+    read_until_end(reader, |read_bytes| {
+      request_counter += 1;
+      assert_eq!(read_bytes.len(), block_size);
+    });
+    assert_eq!(request_counter, 2);
+  }
+
   mod helpers {
     use super::super::Reader;
     use std::env;
@@ -450,6 +446,4 @@ mod tests {
       }).for_each(callback);
     }
   }
-
-
 }

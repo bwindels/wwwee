@@ -1,4 +1,5 @@
 use std::io;
+use std::ops::Range;
 use std::os::unix::io::RawFd;
 use std::time::Duration;
 use std::mem;
@@ -20,15 +21,17 @@ pub struct Operation {
 
 impl Operation {
 
-  pub fn create_read(fd: RawFd, offset: usize, mut buffer: Buffer) -> Operation {
+  pub fn create_read(fd: RawFd, range: Range<usize>, mut buffer: Buffer) -> Operation {
     let buffer_ptr = buffer.as_mut_slice().as_mut_ptr();
+    let len = range.end - range.start;
+    assert!(len <= buffer.capacity());
     Operation {
       iocb: ffi::iocb {
         aio_fildes:     fd as u32,
         aio_lio_opcode: ffi::IOCB_CMD_PREAD as u16,
         aio_buf:        buffer_ptr as u64,
-        aio_nbytes:     buffer.capacity() as u64,
-        aio_offset:     offset as i64,
+        aio_nbytes:     len as u64,
+        aio_offset:     range.start as i64,
         .. Default::default()
       },
       buffer
