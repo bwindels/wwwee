@@ -76,7 +76,7 @@ impl<'a> TLSContext<'a> {
 }
 
 pub struct AppSink {
-  ctx: TLSContext
+  ctx: &TLSContext
 }
 
 impl Write for AppSink {
@@ -88,10 +88,10 @@ impl Readable for AppSink {
 }
 
 pub struct TransportSink {
-  ctx: TLSContext
+  ctx: &TLSContext
 }
 
-impl Write for TransportSink {
+impl ReadFrom for TransportSink {
 
 }
 
@@ -101,8 +101,48 @@ impl Readable for TransportSink {
 pub trait Readable {
   fn get_available<'a>(&'a self) -> Option<&'a [u8]>;
 }
+
+pub trait ReadFrom {  //see Buffer
+  fn read_from<R: io::Read>(&mut self, reader: &mut R) -> io::Result<usize>;
+}
+
+
+/*
+Read + ReadFrom means copy, which we only want from os socket
+in between handlers, we can avoid copy by using ...
+we want to pass the socket abstraction in the event, handlers should not own it anymore
+much like bytes_available event we had in the beginning
+
+but in event put newly received bytes (like we have to do with tls because buffers are reused)
+or all bytes like the append buffer we have in http handler?
+doing both over same trait would be confusing semantics
+*/
+
+trait SocketAbstraction : Readable + Write {
+
+}
+
+//OR
+
+enum Event<W: io::Write> {
+  IncomingData(&'a [u8], W),  //but how would that work with files, etc ???
+}
+
+
+
 /*
 once decrypted, we want a buffer that grows in page increments to contain all headers
 we will probably have to copy the data from the recvapp buffer to the growable buffer,
 or could bearssl directly append into this structure?
+*/
+
+/*
+so the IO pattern could be, on receiving socket data:
+ctx.transportation_sink().write(data)
+if let Some(buffer) = ctx.transportation_sink().get_available() {
+  socket.write(buffer)
+}
+if let Some(buffer) = ctx.application_sink().get_available() {
+  handler(buffer as reader + application_sink().write) //pass buffer as Read and app sink as write
+}
 */
