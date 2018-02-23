@@ -126,6 +126,10 @@ impl Buffer {
   }
 
   pub fn read_from<R: io::Read>(&mut self, reader: &mut R) -> io::Result<usize> {
+    //TODO: read all data here from reader, not just what would fit
+    //this could be optimized with an extra ReadHint trait that gives an Option<usize>
+    //for the available size. This way we could only do one allocation if a lot of
+    //data is available.
     let bytes_read = reader.read(self.page_buffer.as_mut_slice())?;
     self.len += bytes_read;
     Ok(bytes_read)
