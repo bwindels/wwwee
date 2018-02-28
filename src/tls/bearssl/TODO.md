@@ -1,8 +1,14 @@
 # Roadmap to TLS support
 
+## Shortlist:
+
+ 1. make PageBuffer safe and public
+ 1. make the socket owned by the connection struct and borrow it in the io::Context
+
 ## Hardcoded, self-signed certificate
 
-First thing to support is a hardcoded, self-signed certificate. Just old-school RSA, no elliptic curve. We'll implement an io::Handler 
+First thing to support is a hardcoded, self-signed certificate. Just old-school RSA, no elliptic curve. 
+
 
 ### Write TLSContext helper
   - make PageBuffer api public
