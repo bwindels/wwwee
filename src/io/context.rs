@@ -13,17 +13,17 @@ use super::{
 pub struct Context<'a> {
   poll: &'a mio::Poll,
   conn_id: ConnectionId,
-  token_source: &'a AsyncTokenSource,
+  token_source: &'a mut AsyncTokenSource,
   socket: &'a mut Socket
 }
 
 impl<'a> Context<'a>
 {
-  pub fn new(poll: &'a mio::Poll, conn_id: ConnectionId, token_source: &'a AsyncTokenSource, socket: &'a mut Socket) -> Context<'a> {
+  pub fn new(poll: &'a mio::Poll, conn_id: ConnectionId, token_source: &'a mut AsyncTokenSource, socket: &'a mut Socket) -> Context<'a> {
     Context {poll, conn_id, token_source, socket}
   }
 
-  pub fn with_wrapped_socket(&self, socket: &'a mut Socket) -> Context<'a>
+  /*pub fn with_wrapped_socket(&self, socket: &'a mut Socket) -> Context<'a>
   {
     Context {
       poll: self.poll,
@@ -31,9 +31,9 @@ impl<'a> Context<'a>
       token_source: self.token_source,
       socket
     }
-  }
+  }*/
 
-  pub fn register<R: AsyncSource>(&self, registerable: R) -> std::io::Result<Registered<R>> {
+  pub fn register<R: AsyncSource>(&mut self, registerable: R) -> std::io::Result<Registered<R>> {
     let token = self.alloc_token();
     let registered_handler = Registered::register(registerable, token, &self.poll)?;
     Ok(registered_handler)
@@ -43,11 +43,11 @@ impl<'a> Context<'a>
     registerable.deregister(&self.poll)
   }
 
-  pub fn socket<'b>(&'b mut self) -> &'b mut (Socket + 'b) {
-    &mut self.socket
+  pub fn socket(&mut self) -> &mut Socket {
+    self.socket
   }
   
-  fn alloc_token(&self) -> Token {
+  fn alloc_token(&mut self) -> Token {
     let async_token = self.token_source.alloc_async_token();
     Token::from_parts(self.conn_id, async_token)
   }

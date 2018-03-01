@@ -19,7 +19,7 @@ impl ResponseWriter {
     }
   }
 
-  fn next_state(&mut self, ctx: &Context) -> Option<State> {
+  fn next_state(&mut self, ctx: &mut Context) -> Option<State> {
     let state = self.state.take();
     let new_state = match state {
       Some(State::Headers(header_writer, ResponseBody::File(file_reader))) => {
@@ -39,7 +39,7 @@ impl ResponseWriter {
 }
 
 impl Handler<()> for ResponseWriter {
-  fn handle_event(&mut self, event: &Event, ctx: &Context) -> Option<()> {
+  fn handle_event(&mut self, event: &Event, ctx: &mut Context) -> Option<()> {
     let result = match self.state {
       Some(State::Headers(ref mut header_writer, _)) => {
         header_writer.handle_event(event, ctx)

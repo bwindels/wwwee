@@ -42,5 +42,5 @@ impl EventKind {
 }
 
 pub trait Handler<T> {
-  fn handle_event(&mut self, event: &Event, ctx: &Context) -> Option<T>;
+  fn handle_event(&mut self, event: &Event, ctx: &mut Context) -> Option<T>;
 }

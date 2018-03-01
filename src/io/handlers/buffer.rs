@@ -15,8 +15,8 @@ impl<'a> BufferResponder {
 
 impl Handler<usize> for BufferResponder {
 
-  fn handle_event(&mut self, event: &Event, ctx: &Context) -> Option<usize> {
-    let socket = ctx.socket();
+  fn handle_event(&mut self, event: &Event, ctx: &mut Context) -> Option<usize> {
+    let mut socket = ctx.socket();
     if !socket.is_source_of(event) {
       return None;
     }

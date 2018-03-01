@@ -5,7 +5,7 @@ use std::io;
 /// Using std::io::Read and std::io::Write would require an intermediate buffer.
 pub trait ReadDst {
   fn read_from(&mut self, reader: &mut io::Read) -> io::Result<usize>;
-  fn read_from_with_hint(&mut self, reader: &mut ReadSizeHint) -> io::Result<usize> {
+  fn read_from_with_hint(&mut self, mut reader: &mut ReadSizeHint) -> io::Result<usize> {
     self.read_from(&mut reader)
   }
 }

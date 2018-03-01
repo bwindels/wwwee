@@ -66,8 +66,8 @@ impl FileResponder {
 }
 
 impl Handler<usize> for FileResponder {
-  fn handle_event(&mut self, event: &Event, ctx: &Context) -> Option<usize> {
-    let socket = ctx.socket();
+  fn handle_event(&mut self, event: &Event, ctx: &mut Context) -> Option<usize> {
+    let mut socket = ctx.socket();
     //if the socket becomes readable, we don't care (http1)
     //or someone else should handle it (http2)
     //so in here we only handle reading from the file

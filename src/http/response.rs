@@ -45,13 +45,12 @@ impl Response {
   }
 }
 
-pub struct Responder<'a> {
-  ctx: &'a Context<'a>
+pub struct Responder {
 }
 
-impl<'a> Responder<'a> {
-  pub fn new(ctx: &'a Context<'a>) -> Responder<'a> {
-    Responder {ctx}
+impl Responder {
+  pub fn new() -> Responder {
+    Responder {}
   }
 
   pub fn respond(&self, status: Status) -> io::Result<HeaderWriter> {

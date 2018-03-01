@@ -48,9 +48,9 @@ impl<T> Handler<T> {
 impl<T: RequestHandler> io::Handler<Option<ResponseWriter>> for Handler<T>
 {
 
-  fn handle_event(&mut self, event: &io::Event, ctx: &io::Context) -> Option<Option<ResponseWriter>>
+  fn handle_event(&mut self, event: &io::Event, ctx: &mut io::Context) -> Option<Option<ResponseWriter>>
   {
-    let socket = ctx.socket();
+    let mut socket = ctx.socket();
 
     if !event.kind().is_readable() {
       return None;
@@ -71,7 +71,7 @@ impl<T: RequestHandler> io::Handler<Option<ResponseWriter>> for Handler<T>
         {
           let request = Request::parse(header_buf);
           let response = {
-            let responder = ::http::response::Responder::new(ctx);
+            let responder = Responder::new();
             {
               match request {
                 Ok(req) => {

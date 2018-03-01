@@ -77,7 +77,7 @@ impl<T, F> Server<T, F>
       else {
         if let Some(conn_idx) = self.handle_event(&event) {
           let conn_opt = self.connections[conn_idx].take();
-          if let Some(conn) = conn_opt {
+          if let Some(mut conn) = conn_opt {
             conn.deregister(&mut self.poll);
           }
         }
