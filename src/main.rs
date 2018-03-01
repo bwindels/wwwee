@@ -6,6 +6,7 @@ mod buffer;
 mod io;
 mod server;
 mod query_connection;
+mod tls;
 #[cfg(test)]
 mod test_helpers;
 

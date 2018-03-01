@@ -1,10 +1,12 @@
+use io::{Socket, ReadSizeHint, EventSource};
+use std::io;
 
-struct DecryptedSocket<'a, W> {
+struct SocketWrapper<'a, S> {
   ctx: &mut 'a TLSContext
-  rec_writer: &mut 'a W 
+  rec_writer: &mut 'a S 
 }
 
-impl<'a> DecryptedSocket<'a, W> {
+impl<'a> SocketWrapper<'a, W> {
   pub fn can_read(&self) -> bool {
     ffi::br_ssl_engine_recvapp_buf(&ctx.ctx).is_some()
   }
@@ -14,7 +16,7 @@ impl<'a> DecryptedSocket<'a, W> {
   }
 }
 
-impl<'a, W: io::Write> io::Read for DecryptedSocket<'a, W> {
+impl<'a, W> io::Read for SocketWrapper<'a, W> {
   fn read(&mut self, dst_buffer: &mut [u8]) -> io::Result<usize> {
     let mut size = 0usize;
     ffi::br_ssl_engine_recvapp_buf(&ctx.ctx.eng, &mut size).map(|ptr| {
@@ -27,7 +29,7 @@ impl<'a, W: io::Write> io::Read for DecryptedSocket<'a, W> {
   }
 }
 
-impl<'a, W> ReadSizeHint for DecryptedSocket<'a, W> {
+impl<'a, W> ReadSizeHint for SocketWrapper<'a, W> {
   fn read_size_hint(&self) -> Option<usize> {
     let mut size = 0usize;
     ffi::br_ssl_engine_recvapp_buf(&ctx.ctx, &mut size).map(|_| size)
@@ -35,7 +37,7 @@ impl<'a, W> ReadSizeHint for DecryptedSocket<'a, W> {
 }
 
 
-impl<'a, W: io::Write> io::Write for DecryptedSocket<'a, W> {
+impl<'a, W: io::Write> io::Write for SocketWrapper<'a, W> {
   // TODO: this will need to flush to socket when sendrec is available
   fn write(&mut self, src_buffer: &[u8]) -> io::Result<usize> {
     let mut size = 0usize;
@@ -46,5 +48,11 @@ impl<'a, W: io::Write> io::Write for DecryptedSocket<'a, W> {
       ffi::br_ssl_engine_sendapp_ack(&ctx.ctx.eng, len);
       len
     }).ok_or(/*invalid state error*/)
+  }
+}
+
+impl<'a, S: EventSource> EventSource for SocketWrapper<'a, S> {
+  fn token(&self) -> AsyncToken {
+    self.socket.token()
   }
 }

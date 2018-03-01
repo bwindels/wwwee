@@ -1,9 +1,12 @@
 # Roadmap to TLS support
 
 ## Shortlist:
-
- 1. make PageBuffer safe and public
- 1. make the socket owned by the connection struct and borrow it in the io::Context
+  1. make safe thin wrapper around ffi
+  2. write skey decoder function
+  3. implement context
+  4. implement rec channels
+  5. implement socket
+  6. implement Buffer::read_from_with_hint
 
 ## Hardcoded, self-signed certificate
 
