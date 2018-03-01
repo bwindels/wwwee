@@ -1,4 +1,4 @@
-use io::{Handler, AsyncSource, Context, Event};
+use io::{Handler, Context, Event};
 use io::handlers::{BufferResponder, FileResponder};
 use buffer::Buffer;
 use super::internal::ResponseBody;
@@ -22,7 +22,7 @@ impl ResponseWriter {
   fn next_state(&mut self, ctx: &mut Context) -> Option<State> {
     let state = self.state.take();
     let new_state = match state {
-      Some(State::Headers(header_writer, ResponseBody::File(file_reader))) => {
+      Some(State::Headers(_, ResponseBody::File(file_reader))) => {
         let file_reader = ctx.register(file_reader).unwrap();
         let mut file_writer = FileResponder::start(file_reader).unwrap();
         Some(State::FileBody(file_writer))

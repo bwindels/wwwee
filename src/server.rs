@@ -78,7 +78,9 @@ impl<T, F> Server<T, F>
         if let Some(conn_idx) = self.handle_event(&event) {
           let conn_opt = self.connections[conn_idx].take();
           if let Some(mut conn) = conn_opt {
-            conn.deregister(&mut self.poll);
+            if let Err(err) = conn.deregister(&mut self.poll) {
+              println!("could not deregister socket from epoll: {:?}", err);
+            }
           }
         }
       }

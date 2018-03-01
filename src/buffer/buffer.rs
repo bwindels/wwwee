@@ -90,8 +90,9 @@ impl io::Write for Buffer {
 mod tests {
   use super::Buffer;
   use std::io::Write;
-
-#[test]
+  use io::ReadDst;
+  
+  #[test]
   fn test_write() {
     let mut buffer = Buffer::new();
     assert_eq!(buffer.as_slice(), b"");
