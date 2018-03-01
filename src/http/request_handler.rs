@@ -10,7 +10,7 @@ use buffer::Buffer;
 use io;
 use std;
 use std::io::Write;
-use std::ops::DerefMut;
+use io::ReadDst;
 
 pub trait RequestHandler {
   
@@ -28,63 +28,43 @@ pub trait RequestHandler {
 
 }
 
-pub struct Handler<T, S> {
+pub struct Handler<T> {
   header_body_splitter: HeaderBodySplitter,
   handler: T,
   read_buffer: Buffer,
-  socket: Option<io::Registered<S>>
-  //content_length: u64
 }
-/*
-enum Stage {
-  SearchHeaderEnd(HeaderBodySplitter),
-  HeadersParsed(Request)
-}
-*/
-impl<T, S> Handler<T, S> {
 
-  pub fn new(handler: T, socket: io::Registered<S>) -> Handler<T, S> {
+impl<T> Handler<T> {
+
+  pub fn new(handler: T) -> Handler<T> {
     Handler {
       header_body_splitter: HeaderBodySplitter::new(),
       handler,
-      socket: Some(socket),
       read_buffer: Buffer::new()
     }
   }
 }
 
-impl<T, S>
-  io::Handler<Option<ResponseWriter<S>>> 
-for
-  Handler<T, S>
-where
-  T: RequestHandler,
-  S: std::io::Read + std::io::Write + io::AsyncSource
+impl<T: RequestHandler> io::Handler<Option<ResponseWriter>> for Handler<T>
 {
 
-  fn handle_event(&mut self, event: &io::Event, ctx: &io::Context) -> Option<Option<ResponseWriter<S>>>
+  fn handle_event(&mut self, event: &io::Event, ctx: &io::Context) -> Option<Option<ResponseWriter>>
   {
+    let socket = ctx.socket();
+
     if !event.kind().is_readable() {
       return None;
     }
 
-    let bytes_read = {
-      let read_buffer = &mut self.read_buffer;
-      self.socket.as_mut().map(|socket| {
-        read_buffer.read_from(socket.deref_mut())
-      })
-    };
-
-    match bytes_read {
-      Some(Err(err)) => {
+    match self.read_buffer.read_from(&mut socket) {
+      Err(err) => {
         println!("dropping request because error while reading socket: {:?}", err.kind());
         Some(None)   //drop request
       },
-      None |
-      Some(Ok(0)) => {
+      Ok(0) => {
         Some(None)   //drop request
       },
-      _ => {
+      Ok(_) => {
         let mut read_buffer = self.read_buffer.as_mut_slice();
         if let Some((header_buf, _)) = 
           self.header_body_splitter.try_split(&mut read_buffer)
@@ -102,16 +82,9 @@ where
               }
             }
           };
-          let response = response.unwrap_or_else(|| handle_no_response());
-          
-          if let Some(socket) = self.socket.take() {
-            let response_handler = response.into_handler(socket);
-            Some(Some(response_handler))
-          }
-          else {
-            println!("dropping request because could not take socket out of request handler");
-            Some(None) //drop request
-          }
+          let response = response.unwrap_or_else(|| handle_no_response());          
+          let response_handler = response.into_handler();
+          Some(Some(response_handler))
         }
         else {
           None  //in progress

@@ -1,5 +1,4 @@
-use super::token::AsyncToken;
-use super::context::Context;
+use super::{Context, AsyncToken};
 
 pub struct Event {
   token: AsyncToken,

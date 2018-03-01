@@ -1,53 +1,44 @@
-use io::{Handler, AsyncSource, Context, Registered, Event};
+use io::{Handler, AsyncSource, Context, Event};
 use io::handlers::{BufferResponder, FileResponder};
-use std::io::Write;
 use buffer::Buffer;
 use super::internal::ResponseBody;
 
-enum State<W> {
-  Headers(BufferResponder<W>, ResponseBody),
-  FileBody(FileResponder<W>)
+enum State {
+  Headers(BufferResponder, ResponseBody),
+  FileBody(FileResponder)
 }
 
-pub struct ResponseWriter<W> {
-  state: Option<State<W>>
+pub struct ResponseWriter {
+  state: Option<State>
 }
 
-impl<W: Write + AsyncSource> ResponseWriter<W> {
-  pub fn new(socket: Registered<W>, headers: Buffer, body: ResponseBody) -> ResponseWriter<W> {
+impl ResponseWriter {
+  pub fn new(headers: Buffer, body: ResponseBody) -> ResponseWriter {
     ResponseWriter {
-      state: Some(State::Headers(BufferResponder::new(socket, headers), body))
+      state: Some(State::Headers(BufferResponder::new(headers), body))
     }
   }
 
-  fn next_state(&mut self, ctx: &Context) -> Option<State<W>> {
+  fn next_state(&mut self, ctx: &Context) -> Option<State> {
     let state = self.state.take();
-    let (new_state, socket_to_close) = match state {
+    let new_state = match state {
       Some(State::Headers(header_writer, ResponseBody::File(file_reader))) => {
-        let socket = header_writer.into_writer();
         let file_reader = ctx.register(file_reader).unwrap();
-        let mut file_writer = FileResponder::start(socket, file_reader).unwrap();
-        (Some(State::FileBody(file_writer)), None)
-      },
-      Some(State::Headers(header_writer, ResponseBody::InBuffer)) => {
-        let socket = header_writer.into_writer();
-        (None, Some(socket))
+        let mut file_writer = FileResponder::start(file_reader).unwrap();
+        Some(State::FileBody(file_writer))
       },
       Some(State::FileBody(file_writer)) => {
-        let (reader, socket) = file_writer.into_parts();
+        let reader = file_writer.into_reader();
         reader.into_deregistered(ctx).unwrap();
-        (None, Some(socket))
+        None
       },
-      None => (None, None)
+      _ => None
     };
-    if let Some(socket) = socket_to_close {
-      socket.into_deregistered(ctx).unwrap();
-    }
     new_state
   }
 }
 
-impl<W: Write + AsyncSource> Handler<()> for ResponseWriter<W> {
+impl Handler<()> for ResponseWriter {
   fn handle_event(&mut self, event: &Event, ctx: &Context) -> Option<()> {
     let result = match self.state {
       Some(State::Headers(ref mut header_writer, _)) => {

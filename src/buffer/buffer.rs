@@ -43,7 +43,10 @@ impl Buffer {
     &mut self.page_buffer.as_mut_slice()[.. self.len]
   }
 
-  pub fn read_from<R: io::Read>(&mut self, reader: &mut R) -> io::Result<usize> {
+}
+
+impl ::io::ReadDst for Buffer {
+  fn read_from(&mut self, reader: &mut io::Read) -> io::Result<usize> {
     //TODO: read all data here from reader, not just what would fit
     //this could be optimized with an extra ReadHint trait that gives an Option<usize>
     //for the available size. This way we could only do one allocation if a lot of
@@ -52,6 +55,7 @@ impl Buffer {
     self.len += bytes_read;
     Ok(bytes_read)
   }
+  //TODO: implement read_from_with_hint
 }
 
 impl io::Write for Buffer {

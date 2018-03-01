@@ -2,8 +2,9 @@ use mio::net::{TcpListener, TcpStream};
 use mio;
 use std::net::SocketAddr;
 use std;
+use std::ops::DerefMut;
 use io;
-
+use io::AsyncSource;
 pub const CONNECTION_COUNT : usize = 100;
 const SERVER_TOKEN : mio::Token = mio::Token(0);
 
@@ -19,7 +20,14 @@ fn initialize_connections<T>() -> [Option<Connection<T>>; CONNECTION_COUNT] {
 
 struct Connection<T> {
   pub handler: T,
+  pub socket: io::Registered<TcpStream>,
   pub token_source: io::AsyncTokenSource
+}
+
+impl<T> Connection<T> {
+  pub fn deregister(&mut self, selector: &mut mio::Poll) -> std::io::Result<()> {
+    self.socket.deref_mut().deregister(selector)
+  }
 }
 
 pub struct Server<T, F> {
@@ -31,7 +39,7 @@ pub struct Server<T, F> {
 
 impl<T, F> Server<T, F>
   where T: io::Handler<()>,
-        F: Fn(io::Registered<TcpStream>) -> T
+        F: Fn() -> T
 {
   pub fn new(addr: SocketAddr, handler_creator: F)
     -> std::io::Result<Server<T, F>>
@@ -68,7 +76,10 @@ impl<T, F> Server<T, F>
       }
       else {
         if let Some(conn_idx) = self.handle_event(&event) {
-          self.connections[conn_idx] = None;
+          let conn_opt = self.connections[conn_idx].take();
+          if let Some(conn) = conn_opt {
+            conn.deregister(&mut self.poll);
+          }
         }
       }
     }
@@ -100,9 +111,14 @@ impl<T, F> Server<T, F>
 
     if let Some(ref mut connection) = self.connections[conn_idx] {
 
-      let mut ctx = io::Context::new(&self.poll, conn_id, &mut connection.token_source);
+      let mut ctx = io::Context::new(
+        &self.poll,
+        conn_id,
+        &mut connection.token_source,
+        &mut connection.socket);
+
       let r = event.readiness();
-      // TODO: deregister socket from poll and dont call writable when readable already closed the connection
+      // TODO: we can merge these events into one call probably
       if r.is_readable() {
         let io_event = io::Event::new(token.async_token(), io::EventKind::Readable);
         if let Some(_) = connection.handler.handle_event(&io_event, &mut ctx) {
@@ -147,8 +163,9 @@ impl<T, F> Server<T, F>
     let socket_async_token = io::AsyncToken::default();
     let token = io::Token::from_parts(conn_id, socket_async_token);
     let registered_socket = io::Registered::register(socket, token, &self.poll)?;
-    let handler = (self.handler_creator)(registered_socket);
+    let handler = (self.handler_creator)();
     Ok(Connection {
+      socket: registered_socket,
       handler,
       token_source: io::AsyncTokenSource::starting_from(socket_async_token)
     })

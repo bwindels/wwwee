@@ -1,6 +1,6 @@
 use std::io::{Write, ErrorKind, Error};
 
-pub fn send_buffer<W: Write>(socket: &mut W, buffer: &[u8]) -> SendResult {
+pub fn send_buffer(socket: &mut Write, buffer: &[u8]) -> SendResult {
   let mut remaining_bytes = buffer;
   let mut bytes_written = 0usize;
 
