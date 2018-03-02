@@ -2,17 +2,17 @@ use super::wrapper::{engine};
 use std::io::{Read, Write, Result, Error, ErrorKind};
 use io::{WriteSrc, ReadDst};
 
-pub struct ReceiveRecordBuffer<'a> {
+pub struct ReceiveRecordChannel<'a> {
   engine: &'a mut engine::Context
 }
 
-impl<'a> ReceiveRecordBuffer<'a> {
-  pub fn new(engine: &'a mut engine::Context) -> ReceiveRecordBuffer {
-    ReceiveRecordBuffer { engine }
+impl<'a> ReceiveRecordChannel<'a> {
+  pub fn new(engine: &'a mut engine::Context) -> ReceiveRecordChannel {
+    ReceiveRecordChannel { engine }
   }
 }
 
-impl<'a> ReadDst for ReceiveRecordBuffer<'a> {
+impl<'a> ReadDst for ReceiveRecordChannel<'a> {
   fn read_from(&mut self, reader: &mut Read) -> Result<usize> {
     let bytes_read = {
       let buffer = self.engine.recvrec_buf()
@@ -25,17 +25,17 @@ impl<'a> ReadDst for ReceiveRecordBuffer<'a> {
   }
 }
 
-pub struct SendRecordBuffer<'a> {
+pub struct SendRecordChannel<'a> {
   engine: &'a mut engine::Context
 }
 
-impl<'a> SendRecordBuffer<'a> {
-  pub fn new(engine: &'a mut engine::Context) -> SendRecordBuffer {
-    SendRecordBuffer { engine }
+impl<'a> SendRecordChannel<'a> {
+  pub fn new(engine: &'a mut engine::Context) -> SendRecordChannel {
+    SendRecordChannel { engine }
   }
 }
 
-impl<'a> WriteSrc for SendRecordBuffer<'a> {
+impl<'a> WriteSrc for SendRecordChannel<'a> {
   fn write_to(&mut self, writer: &mut Write) -> Result<usize> {
     let bytes_written = {
       let buffer = self.engine.sendrec_buf()

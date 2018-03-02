@@ -1,6 +1,6 @@
 use ::buffer::PageBuffer;
 use super::wrapper::*;
-use super::{ReceiveRecordBuffer, SendRecordBuffer};
+use super::{ReceiveRecordChannel, SendRecordChannel};
 
 pub struct TLSContext<'a> {
   buffer: PageBuffer,
@@ -34,11 +34,11 @@ impl<'a> TLSContext<'a> {
   }
 
   /// write source for incoming encrypted data
-  pub fn receive_record_channel(&'a mut self) -> Option<ReceiveRecordBuffer<'a>> {
+  pub fn receive_record_channel(&'a mut self) -> Option<ReceiveRecordChannel<'a>> {
     let engine = self.server_context.engine_mut();
     let buffer_available = engine.recvrec_buf().is_some();
     if buffer_available {
-      Some(ReceiveRecordBuffer::new(engine))
+      Some(ReceiveRecordChannel::new(engine))
     }
     else {
       None
@@ -46,11 +46,11 @@ impl<'a> TLSContext<'a> {
   }
 
   /// reader for encrypted data to be sent to peer
-  pub fn send_record_channel(&'a mut self) -> Option<SendRecordBuffer<'a>> {
+  pub fn send_record_channel(&'a mut self) -> Option<SendRecordChannel<'a>> {
     let engine = self.server_context.engine_mut();
     let buffer_available = engine.sendrec_buf().is_some();
     if buffer_available {
-      Some(SendRecordBuffer::new(engine))
+      Some(SendRecordChannel::new(engine))
     }
     else {
       None
