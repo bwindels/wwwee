@@ -1,6 +1,6 @@
 use mio;
 use std;
-use io::{AsyncSource, Token};
+use io::{AsyncSource, Token, ReadSizeHint};
 
 impl AsyncSource for mio::net::TcpStream {
   fn register(&mut self, selector: &mio::Poll, token: Token) -> std::io::Result<()> {
@@ -15,3 +15,5 @@ impl AsyncSource for mio::net::TcpStream {
     selector.deregister(self)
   }
 }
+
+impl ReadSizeHint for mio::net::TcpStream {}

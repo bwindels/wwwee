@@ -6,7 +6,7 @@ use super::Result;
 pub type Context = br_ssl_engine_context;
 
 impl Context {
-  pub fn recvrec_buf<'a>(&'a mut self) -> Option<&'a mut [u8]> {
+  pub fn recvrec_buf<'a>(&'a self) -> Option<&'a mut [u8]> {
     let mut size = 0usize;
     let ptr = unsafe {
       br_ssl_engine_recvrec_buf(
@@ -23,7 +23,7 @@ impl Context {
     self.last_error()
   }
 
-  pub fn sendrec_buf<'a>(&'a mut self) -> Option<&'a mut [u8]> {
+  pub fn sendrec_buf<'a>(&'a self) -> Option<&'a mut [u8]> {
     let mut size = 0usize;
     let ptr = unsafe {
       br_ssl_engine_sendrec_buf(
@@ -40,7 +40,7 @@ impl Context {
     self.last_error()
   }
 
-  pub fn recvapp_buf<'a>(&'a mut self) -> Option<&'a mut [u8]> {
+  pub fn recvapp_buf<'a>(&'a self) -> Option<&'a mut [u8]> {
     let mut size = 0usize;
     let ptr = unsafe {
       br_ssl_engine_recvapp_buf(
@@ -57,7 +57,7 @@ impl Context {
     self.last_error()
   }
 
-  pub fn sendapp_buf<'a>(&'a mut self) -> Option<&'a mut [u8]> {
+  pub fn sendapp_buf<'a>(&'a self) -> Option<&'a mut [u8]> {
     let mut size = 0usize;
     let ptr = unsafe {
       br_ssl_engine_sendapp_buf(

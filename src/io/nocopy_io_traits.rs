@@ -12,10 +12,6 @@ pub trait ReadDst {
 /// Provides a hint how many bytes can read from this source
 /// This can be used to optimize allocation before reading
 pub trait ReadSizeHint : io::Read {
-  fn read_size_hint(&self) -> Option<usize>;
-}
-//default implementation
-impl<T: io::Read> ReadSizeHint for T {
   fn read_size_hint(&self) -> Option<usize> {
     None
   }

@@ -1,7 +1,7 @@
 use std;
 use mio;
 use std::ops::{Deref, DerefMut};
-use super::{Token, Event, AsyncToken, Context};
+use super::{Token, Event, AsyncToken, Context, ReadSizeHint};
 use std::io::{Write, Read};
 
 pub trait EventSource {
@@ -60,6 +60,12 @@ impl<R: Write> Write for Registered<R> {
 
   fn flush(&mut self) -> std::io::Result<()> {
     self.source.flush()
+  }
+}
+
+impl<R: ReadSizeHint> ReadSizeHint for Registered<R> {
+  fn read_size_hint(&self) -> Option<usize> {
+    self.source.read_size_hint()
   }
 }
 
