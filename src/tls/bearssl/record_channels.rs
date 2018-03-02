@@ -1,39 +1,49 @@
-use super::ffi;
+use super::wrapper::{engine};
 use std::io::{Read, Write, Result, Error, ErrorKind};
 use io::{WriteSrc, ReadDst};
 
 pub struct ReceiveRecordBuffer<'a> {
-  eng: &mut 'a ffi::br_ssl_engine_context,
-  buffer: Option<&mut 'a [u8]>
+  engine: &'a mut engine::Context
+}
+
+impl<'a> ReceiveRecordBuffer<'a> {
+  pub fn new(engine: &'a mut engine::Context) -> ReceiveRecordBuffer {
+    ReceiveRecordBuffer { engine }
+  }
 }
 
 impl<'a> ReadDst for ReceiveRecordBuffer<'a> {
-  fn read_from<R: Read>(&mut self, reader: &mut R) -> Result<usize> {
-    let buffer = self.buffer.ok_or(Error::new(
-      ErrorKind::Other,
-      "tls recvrec buffer was consumed already"))?;
-    reader.read(buffer).map(|bytes_read| {
-      ffi::br_ssl_engine_recvrec_ack(self.eng, bytes_read);
-      self.buffer = None;
-      bytes_read
-    })
+  fn read_from(&mut self, reader: &mut Read) -> Result<usize> {
+    let bytes_read = {
+      let buffer = self.engine.recvrec_buf()
+        .ok_or(Error::new(ErrorKind::Other, "recvrec buffer not available"))?;
+      reader.read(buffer)?
+    };
+    self.engine.recvrec_ack(bytes_read)
+      .map(|_| bytes_read)
+      .map_err(|_| Error::new(ErrorKind::Other, "engine error after ack"))
   }
 }
 
 pub struct SendRecordBuffer<'a> {
-  eng: &mut 'a ffi::br_ssl_engine_context,
-  buffer: Option<&mut 'a [u8]>
+  engine: &'a mut engine::Context
+}
+
+impl<'a> SendRecordBuffer<'a> {
+  pub fn new(engine: &'a mut engine::Context) -> SendRecordBuffer {
+    SendRecordBuffer { engine }
+  }
 }
 
 impl<'a> WriteSrc for SendRecordBuffer<'a> {
-  fn write_to<R: Write>(&mut self, writer: &mut W) -> Result<usize> {
-    let buffer = self.buffer.ok_or(Error::new(
-      ErrorKind::Other,
-      "tls sendrec buffer was consumed already"))?;
-    writer.write(buffer).map(|bytes_written| {
-      ffi::br_ssl_engine_sendrec_ack(self.eng, bytes_written);
-      self.buffer = None;
-      bytes_written
-    });
+  fn write_to(&mut self, writer: &mut Write) -> Result<usize> {
+    let bytes_written = {
+      let buffer = self.engine.sendrec_buf()
+        .ok_or(Error::new(ErrorKind::Other, "sendrec buffer not available"))?;
+      writer.write(buffer)?
+    };
+    self.engine.sendrec_ack(bytes_written)
+      .map(|_| bytes_written)
+      .map_err(|_| Error::new(ErrorKind::Other, "engine error after ack"))
   }
 }
