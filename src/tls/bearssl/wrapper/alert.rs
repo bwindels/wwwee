@@ -1,0 +1,27 @@
+use super::ffi::*;
+
+pub enum Alert {
+  CloseNotify = BR_ALERT_CLOSE_NOTIFY,
+  UnexpectedMessage = BR_ALERT_UNEXPECTED_MESSAGE,
+  BadRecordMac = BR_ALERT_BAD_RECORD_MAC,
+  RecordOverflow = BR_ALERT_RECORD_OVERFLOW,
+  DecompressionFailure = BR_ALERT_DECOMPRESSION_FAILURE,
+  HandshakeFailure = BR_ALERT_HANDSHAKE_FAILURE,
+  BadCertificate = BR_ALERT_BAD_CERTIFICATE,
+  UnsupportedCertificate = BR_ALERT_UNSUPPORTED_CERTIFICATE,
+  CertificateRevoked = BR_ALERT_CERTIFICATE_REVOKED,
+  CertificateExpired = BR_ALERT_CERTIFICATE_EXPIRED,
+  CertificateUnknown = BR_ALERT_CERTIFICATE_UNKNOWN,
+  IllegalParameter = BR_ALERT_ILLEGAL_PARAMETER,
+  UnknownCa = BR_ALERT_UNKNOWN_CA,
+  AccessDenied = BR_ALERT_ACCESS_DENIED,
+  DecodeError = BR_ALERT_DECODE_ERROR,
+  DecryptError = BR_ALERT_DECRYPT_ERROR,
+  ProtocolVersion = BR_ALERT_PROTOCOL_VERSION,
+  InsufficientSecurity = BR_ALERT_INSUFFICIENT_SECURITY,
+  InternalError = BR_ALERT_INTERNAL_ERROR,
+  UserCanceled = BR_ALERT_USER_CANCELED,
+  NoRenegotiation = BR_ALERT_NO_RENEGOTIATION,
+  UnsupportedExtension = BR_ALERT_UNSUPPORTED_EXTENSION,
+  NoApplicationProtocol = BR_ALERT_NO_APPLICATION_PROTOCOL,
+}

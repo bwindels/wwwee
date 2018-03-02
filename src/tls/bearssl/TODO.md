@@ -1,7 +1,6 @@
 # Roadmap to TLS support
 
 ## Shortlist:
-  1. make safe thin wrapper around ffi
   2. write skey decoder function
   3. implement context
   4. implement rec channels
