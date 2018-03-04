@@ -48,6 +48,7 @@ impl<'a> SocketWrapper<'a> {
 }
 
 impl<'a> Read for SocketWrapper<'a> {
+  //TODO: also read from socket until WouldBlock here
   fn read(&mut self, dst_buffer: &mut [u8]) -> Result<usize> {
     let len = {
       let src_buffer = self.engine.recvapp_buf()
