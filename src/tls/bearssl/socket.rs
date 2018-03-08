@@ -24,32 +24,42 @@ impl<'a> SocketWrapper<'a> {
 
   /// tries to send tls records over the socket
   /// returns if more writes would block
-  fn try_send(&mut self) -> Result<bool> {
-    if let Some(sendrec_buffer) = self.engine.sendrec_buf() {
-      let (would_block, bytes_written) = match send_buffer(&mut self.socket, sendrec_buffer) {
-        SendResult::Consumed => {
-          (false, sendrec_buffer.len())
-        },
-        SendResult::WouldBlock(bytes_written) => {
-          (true, bytes_written)
-        },
-        SendResult::IoError(err) => {
-          return Err(err);
+  fn try_send_records(&mut self) -> Result<bool> {
+    let engine = &mut self.engine;
+    let socket : &mut Write = &mut self.socket;
+    engine.sendrec_buf()
+      .map(|sendrec_buffer| {
+        send_buffer(socket, sendrec_buffer)
+      })
+      .map(|result| {
+        match result {
+          Ok(operation) => {
+            engine.sendrec_ack(operation.bytes_written())
+              .map(|_| operation.wrote_partial())
+              .map_err(|_| Error::new(ErrorKind::Other, "engine error after sendrec ack"))
+          },
+          Err(err) => Err(err)
         }
-      };
-      self.engine.sendrec_ack(bytes_written)
-        .map_err(|_| Error::new(ErrorKind::Other, "engine error after sendrec ack"))?;
-      Ok(would_block)
-    }
-    else {
-      Ok(false)
-    }
+      })
+      .unwrap_or(Ok(false)) //no buffer available, so no error, and wouldn't block
   }
 }
 
 impl<'a> Read for SocketWrapper<'a> {
   //TODO: also read from socket until WouldBlock here
   fn read(&mut self, dst_buffer: &mut [u8]) -> Result<usize> {
+    while dst_buffer.is_not_full() {
+      //read max (recvrec buffer size) bytes from socket,
+      //  if read would block, bail out with Ok(bytes_read)
+      //feed into recvrec buffer
+      //get recvapp buffer
+      //  if recvapp buffer is not available or empty, bail out with Ok(bytes_read)
+      //  copy recvapp buffer into dst_buffer
+      //  increments bytes_read counter
+      //  trim dst_buffer with amount of copied bytes
+    }
+
+
     let len = {
       let src_buffer = self.engine.recvapp_buf()
         .ok_or(Error::new(ErrorKind::WouldBlock, ""))?;
@@ -77,28 +87,30 @@ impl<'a> Write for SocketWrapper<'a> {
     let mut would_block = false;
     let mut total_bytes_written = 0;
     while src_buffer.len() > 0 && !would_block {
-      let dst_buffer = self.engine.sendapp_buf()
-        .ok_or(Error::new(ErrorKind::Other, "sendapp buffer not available on socket write"))?;
-      
-      let len = cmp::min(src_buffer.len(), dst_buffer.len());
-      let src_buffer_for_write = &src_buffer[.. len];
-      let dst_buffer = &mut dst_buffer[.. len];
-      dst_buffer.copy_from_slice(src_buffer_for_write);
-
+      let len = {
+        let dst_buffer = self.engine.sendapp_buf()
+          .ok_or(Error::new(ErrorKind::Other, "sendapp buffer not available on socket write"))?;
+        
+        let len = cmp::min(src_buffer.len(), dst_buffer.len());
+        let src_buffer_for_write = &src_buffer[.. len];
+        let dst_buffer = &mut dst_buffer[.. len];
+        dst_buffer.copy_from_slice(src_buffer_for_write);
+        len
+      };
       self.engine.sendapp_ack(len)
         .map_err(|_| Error::new(ErrorKind::Other, "engine error after sendapp ack"))?;
       
       src_buffer = &src_buffer[len ..];
       total_bytes_written += len;
       //any records ready to be sent?
-      would_block = self.try_send()?;
+      would_block = self.try_send_records()?;
     }
     Ok(total_bytes_written)
   }
 
   fn flush(&mut self) -> Result<()> {
     self.engine.flush(true); //force emit non-full record
-    self.try_send().map(|_| () )
+    self.try_send_records().map(|_| () )
   }
 }
 

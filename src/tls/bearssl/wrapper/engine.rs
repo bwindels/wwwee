@@ -22,7 +22,7 @@ impl Context {
     }
     self.last_error()
   }
-
+  //TODO: self should be mut here, returning a mutable ref
   pub fn sendrec_buf<'a>(&'a self) -> Option<&'a mut [u8]> {
     let mut size = 0usize;
     let ptr = unsafe {
