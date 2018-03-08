@@ -24,19 +24,20 @@ impl FileResponder {
   }
 
   fn send_and_request_data(&mut self, socket: &mut Write) -> Option<usize> {
+    // TODO: clean this op with higher level functions
     let need_more_data = if let Ok(buffer) = self.reader.try_get_read_bytes() {
       let mut remaining_bytes = &buffer[self.buffer_bytes_sent ..];
       match send_buffer(socket, remaining_bytes) {
-        SendResult::WouldBlock(bytes_written) => {
+        Ok(SendResult::Partial(bytes_written)) => {
           self.socket_writeable = false;
           self.buffer_bytes_sent += bytes_written;
           false
         },
-        SendResult::Consumed => {
-          self.buffer_bytes_sent += remaining_bytes.len();
+        Ok(SendResult::Complete(bytes_written)) => {
+          self.buffer_bytes_sent += bytes_written;
           true
         },
-        SendResult::IoError(_) => {
+        Err(_) => {
           return Some(self.total_bytes_sent + self.buffer_bytes_sent);
         }
       }

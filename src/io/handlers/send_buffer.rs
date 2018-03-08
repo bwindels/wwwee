@@ -1,6 +1,6 @@
-use std::io::{Write, ErrorKind, Error};
+use std::io::{Write, ErrorKind, Result};
 
-pub fn send_buffer(socket: &mut Write, buffer: &[u8]) -> SendResult {
+pub fn send_buffer(socket: &mut Write, buffer: &[u8]) -> Result<SendResult> {
   let mut remaining_bytes = buffer;
   let mut bytes_written = 0usize;
 
@@ -14,19 +14,42 @@ pub fn send_buffer(socket: &mut Write, buffer: &[u8]) -> SendResult {
         match err.kind() {
           ErrorKind::Interrupted => {}, //retry
           ErrorKind::WouldBlock =>
-            return SendResult::WouldBlock(bytes_written),
+            return Ok(SendResult::Partial(bytes_written)),
           _ =>
-            return SendResult::IoError(err)
+            return Err(err)
         };
       }
     };
   }
 
-  SendResult::Consumed
+  Ok(SendResult::Complete(bytes_written))
 }
 
+#[derive(Clone, Copy)]
 pub enum SendResult {
-  Consumed,
-  WouldBlock(usize),
-  IoError(Error)
+  Partial(usize),
+  Complete(usize)
+}
+
+impl SendResult {
+  pub fn wrote_partial(self) -> bool {
+    match self {
+      SendResult::Partial(_) => true,
+      _ => false
+    }
+  }
+
+  pub fn wrote_complete(self) -> bool {
+    match self {
+      SendResult::Complete(_) => true,
+      _ => false
+    }
+  }
+
+  pub fn bytes_written(self) -> usize {
+    match self {
+      SendResult::Complete(bytes_written) => bytes_written,
+      SendResult::Partial(bytes_written) => bytes_written
+    }
+  }
 }

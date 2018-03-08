@@ -24,15 +24,14 @@ impl Handler<usize> for BufferResponder {
     let slice_to_write = &self.buffer.as_slice()[self.bytes_written ..];
 
     match send_buffer(&mut socket, slice_to_write) {
-      SendResult::WouldBlock(bytes_written) => {
+      Ok(SendResult::Partial(bytes_written)) => {
         self.bytes_written += bytes_written;
         None
       },
-      SendResult::Consumed => {
-        self.bytes_written += slice_to_write.len();
-        Some( self.bytes_written )
+      Ok(SendResult::Complete(bytes_written)) => {
+        Some( self.bytes_written + bytes_written )
       },
-      SendResult::IoError(_) => {
+      Err(_) => {
         Some( self.bytes_written )
       }
     }
