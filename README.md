@@ -8,7 +8,7 @@ Once the generic server code itself is mature enough, the plan is to develop mul
 
 ### Doesn't Nextcloud/Sandstorm.io already do this?
 
-The goals are quite similar, and while these projects offer great value (also because you can use them today), but in my experience require more beefy hardware (in Sandstorms case x86) to work well. Beefier hardware uses more power, is noisier, bigger, and more expensive to buy and run, making self-hosting less accessible to most people. I hope to run a wwwee instance for less than 10 users on a board that idles at less than 1 watt, and maxes out at < 5 watt on hardware that costs less than 20 EUR.
+The goals are quite similar, and while these projects offer great value (also because you can use them today), but in my experience require more beefy hardware (in Sandstorms case x86) to work well. Beefier hardware uses more power, is noisier, bigger, and more expensive to buy and run, making self-hosting less accessible to most people.
 
 ### Who's working on this?
 
