@@ -20,11 +20,11 @@ My Raspberry Pi B+ is serving [www.windels.cloud](http://www.windels.cloud) usin
 
 ### Wwwee?
 
-The name comes from www and (wee)[https://www.merriam-webster.com/dictionary/wee] (as in small). I pronounce it just like wee.
+The name comes from www and [wee](https://www.merriam-webster.com/dictionary/wee) (as in small). I pronounce it just like wee.
 
 ## Status
 
-See also (the more detailed TODO list)[doc/TODO.md].
+See also [the more detailed TODO list](doc/TODO.md).
 
 ### Done
 
