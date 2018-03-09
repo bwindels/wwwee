@@ -1,6 +1,6 @@
 use io::sources::file::Reader;
 use io::{Event, Handler, Registered, Context, EventSource};
-use io::handlers::{send_buffer, SendResult};
+use io::handlers::{send_buffer, IoReport};
 use std;
 use std::io::Write;
 
@@ -28,15 +28,16 @@ impl FileResponder {
     let need_more_data = if let Ok(buffer) = self.reader.try_get_read_bytes() {
       let mut remaining_bytes = &buffer[self.buffer_bytes_sent ..];
       match send_buffer(socket, remaining_bytes) {
-        Ok(SendResult::Partial(bytes_written)) => {
+        Ok(IoReport::Partial(bytes_written)) => {
           self.socket_writeable = false;
           self.buffer_bytes_sent += bytes_written;
           false
         },
-        Ok(SendResult::Complete(bytes_written)) => {
+        Ok(IoReport::Complete(bytes_written)) => {
           self.buffer_bytes_sent += bytes_written;
           true
         },
+        Ok(IoReport::Empty) => false,
         Err(_) => {
           return Some(self.total_bytes_sent + self.buffer_bytes_sent);
         }

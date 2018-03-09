@@ -1,8 +1,17 @@
 use io::{Socket, ReadSizeHint, EventSource, AsyncToken};
-use io::handlers::{send_buffer, SendResult};
+use io::handlers::{send_buffer, receive_buffer, IoReport};
 use std::io::{Result, Error, ErrorKind, Read, Write};
 use super::wrapper::engine;
 use std::cmp;
+
+fn finish_io_with_count(byte_count: usize) -> Result<usize> {
+  if byte_count == 0 {
+    Err(Error::new(ErrorKind::WouldBlock, ""))
+  }
+  else {
+    Ok(byte_count)
+  }
+}
 
 struct SocketWrapper<'a> {
   engine: &'a mut engine::Context,
@@ -33,9 +42,9 @@ impl<'a> SocketWrapper<'a> {
       })
       .map(|result| {
         match result {
-          Ok(operation) => {
-            engine.sendrec_ack(operation.bytes_written())
-              .map(|_| operation.wrote_partial())
+          Ok(result) => {
+            engine.sendrec_ack(result.byte_count()) //byte_count can be 0 here, danger!
+              .map(|_| result.is_partial())
               .map_err(|_| Error::new(ErrorKind::Other, "engine error after sendrec ack"))
           },
           Err(err) => Err(err)
@@ -47,10 +56,45 @@ impl<'a> SocketWrapper<'a> {
 
 impl<'a> Read for SocketWrapper<'a> {
   //TODO: also read from socket until WouldBlock here
-  fn read(&mut self, dst_buffer: &mut [u8]) -> Result<usize> {
-    while dst_buffer.is_not_full() {
+  fn read(&mut self, mut dst_buffer: &mut [u8]) -> Result<usize> {
+    let socket : &mut Read = &mut self.socket;
+    let engine = &mut self.engine;
+    let mut app_bytes_read = 0;
+    let mut remaining_buffer_space = dst_buffer.len();
+
+    while remaining_buffer_space != 0 {
+      // feed records into tls engine
+      let receive_result = engine.recvrec_buf()
+        .map(|buffer| receive_buffer(socket, buffer));
+
+      match receive_result {
+        Some(Err(err)) => return Err(err),
+        Some(Ok(read_result)) => {
+          if !read_result.is_empty() {
+            engine.recvapp_ack(read_result.byte_count())
+              .map_err(|_| Error::new(ErrorKind::Other, "engine error after recvrec ack"))?;
+          }
+        },
+        _ => {}
+      };
+      // any plaintext data available?
+      let len = if let Some(src_buffer) = engine.recvapp_buf() {
+        let len = cmp::min(src_buffer.len(), dst_buffer.len());
+        let op_src_buffer = &src_buffer[.. len];
+        let op_dst_buffer = &mut dst_buffer[.. len];
+        op_dst_buffer.copy_from_slice(op_src_buffer);
+        len
+      }
+      else {
+        return finish_io_with_count(app_bytes_read);
+      };
+      engine.recvapp_ack(len)
+        .map_err(|_| Error::new(ErrorKind::Other, "engine error after recvapp ack"))?;
+      app_bytes_read += len;
+      remaining_buffer_space -= len;
+      dst_buffer = &mut dst_buffer[len ..];
       //read max (recvrec buffer size) bytes from socket,
-      //  if read would block, bail out with Ok(bytes_read)
+      //  if read is empty, bail out with Ok(bytes_read)
       //feed into recvrec buffer
       //get recvapp buffer
       //  if recvapp buffer is not available or empty, bail out with Ok(bytes_read)
@@ -58,20 +102,7 @@ impl<'a> Read for SocketWrapper<'a> {
       //  increments bytes_read counter
       //  trim dst_buffer with amount of copied bytes
     }
-
-
-    let len = {
-      let src_buffer = self.engine.recvapp_buf()
-        .ok_or(Error::new(ErrorKind::WouldBlock, ""))?;
-      let len = cmp::min(src_buffer.len(), dst_buffer.len());
-      let src_buffer = &src_buffer[.. len];
-      let dst_buffer = &mut dst_buffer[.. len];
-      dst_buffer.copy_from_slice(src_buffer);
-      len
-    };
-    self.engine.recvapp_ack(len)
-      .map(|_| len)
-      .map_err(|_| Error::new(ErrorKind::Other, "engine error after recvapp ack"))
+    Ok(app_bytes_read)
   }
 }
 

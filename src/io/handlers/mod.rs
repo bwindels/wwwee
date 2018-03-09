@@ -1,6 +1,6 @@
 mod buffer;
 mod file;
-mod send_buffer;
-pub use self::send_buffer::{send_buffer, SendResult};
+mod buffer_io;
+pub use self::buffer_io::{send_buffer, receive_buffer, IoReport};
 pub use self::buffer::*;
 pub use self::file::*;
