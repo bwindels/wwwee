@@ -2,7 +2,7 @@
 
 Wwwee is a web application server optimized for resource-constrained hardware (think ARM SoCs), focusing on low memory usage (aiming to avoid heap allocations completely), robustness, low administrative burden, and an easy API to develop applications with.
 
-Once the generic server code itself is complete enough, the plan is to develop multiple applications on top, such as a Drive (WebDAV), Calendar (CalDAV), Contacts (CardDAV) and Chat/IM ([Matrix](https://matrix.org)), Micro-blogging ([Mastodon](https://mastodon.social)) and of course a publishing a website/blog, and offer this as a comprehensive suite to self-host most of your internet service from your own home internet connection on very cheap and power-efficient hardware, with minimal maintenance and setup.
+Once the generic server code itself is complete enough, the plan is to develop multiple applications on top, such as a Drive (WebDAV), Calendar (CalDAV), Contacts (CardDAV) and Chat/IM ([Matrix](https://matrix.org)), Micro-blogging ([Mastodon](https://mastodon.social)) and of course a publishing a website/blog, and offer this as a comprehensive suite to self-host most of your internet service from your own home internet connection on affordable and power-efficient hardware, with minimal maintenance and setup.
 
 ## FAQ
 
