@@ -8,7 +8,7 @@ Once the generic server code is complete enough, the plan is to develop multiple
 
 ### Doesn't Nextcloud/Sandstorm.io already do this?
 
-The goals are quite similar, and while these projects offer great value (also because you can use them today), but in my experience require more beefy hardware (in Sandstorms case x86) to work well. Beefier hardware uses more power, is noisier, bigger, and more expensive to buy and run, making self-hosting less accessible to most people.
+The goals are quite similar, and while these projects offer great value (also because you can use them today), but in my experience require more beefy hardware (in Sandstorms case x86) to work well. Beefier hardware uses more power, is noisier, bigger, and more expensive to buy and run, making self-hosting less accessible.
 
 ### Who's working on this?
 
