@@ -2,7 +2,7 @@
 
 Wwwee is a web application server optimized for resource-constrained hardware (think ARM SoCs), focusing on low memory usage (aiming to avoid heap allocations completely), robustness, low administrative burden, and an easy API to develop applications with. It is written in [Rust](https://www.rust-lang.org/).
 
-Once the generic server code itself is complete enough, the plan is to develop multiple applications on top, such as a Drive (WebDAV), Calendar (CalDAV), Contacts (CardDAV) and Chat/IM ([Matrix](https://matrix.org)), Micro-blogging ([Mastodon](https://mastodon.social)) and of course a publishing a website/blog, and offer this as a comprehensive suite to self-host most of your internet service from your own home internet connection on affordable and power-efficient hardware, with minimal maintenance and setup.
+Once the generic server code is complete enough, the plan is to develop multiple applications on top, such as a Drive (WebDAV), Calendar (CalDAV), Contacts (CardDAV) and Chat/IM/Calls ([Matrix](https://matrix.org)), Micro-blogging ([Mastodon](https://mastodon.social)) and of course a publishing a website/blog, and offer this as a comprehensive suite to self-host most of your internet services from your own home internet connection on affordable and power-efficient hardware, with minimal maintenance and setup.
 
 ## FAQ
 
@@ -51,6 +51,7 @@ See also [the more detailed TODO list](doc/TODO.md).
 
 ### Further away plans
 
+ - HTTP2 support
  - UPnP support for auto-setup port-forwarding.
  - Find solution for when Hairpin-NAT is unavailable.
  - Install apps from central repository ("app store")
