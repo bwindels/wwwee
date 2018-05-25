@@ -25,31 +25,21 @@ pub fn send_buffer(socket: &mut Write, buffer: &[u8]) -> Result<IoReport> {
   Ok(IoReport::from_count(bytes_written, remaining_bytes.len()))
 }
 
-pub fn receive_buffer(socket: &mut Read, mut buffer: &mut [u8]) -> Result<IoReport> {
+pub fn receive_buffer(socket: &mut Read, buffer: &mut [u8]) -> Result<IoReport> {
   let mut bytes_read = 0usize;
 
-  while buffer.len() != 0 {
-    match socket.read(buffer) {
-      Ok(len) => {
-        bytes_read += len;
-        buffer = &mut buffer[len ..];
-      },
-      Err(err) => {
-        match err.kind() {
+  loop {
+    match socket.read(&mut buffer[bytes_read ..]) {
+      Ok(0) => break Ok(IoReport::from_count(bytes_read, buffer.len())),
+      Ok(len) => bytes_read += len,
+      Err(err) => match err.kind() {
           ErrorKind::Interrupted => {}, //retry
-          ErrorKind::WouldBlock =>
-            return Ok(IoReport::from_count(bytes_read, buffer.len())),
-          _ =>
-            return Err(err)
-        };
+          ErrorKind::WouldBlock => break Ok(IoReport::from_count(bytes_read, buffer.len())),
+          _ => break Err(err)
       }
-    };
+    }
   }
-
-  Ok(IoReport::from_count(bytes_read, buffer.len()))
 }
-
-
 
 #[derive(Clone, Copy)]
 pub enum IoReport {
