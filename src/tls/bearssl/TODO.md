@@ -20,14 +20,13 @@ First thing to support is a hardcoded, self-signed certificate. Just old-school 
 
 ### Write TLSHandler
 
-It's an io::Handler that has a child io::Handler to forward events to it's child with decoded data. It owns the socket, since we want to read the socket straight into it's `recvrec` buffer.
+It's an io::Handler that has a child io::Handler to forward events to it's child with decoded data. Handlers receive a trait object to the socket when handling an event. The TLSHandler will provide a wrapper for the socket the transparantly en/decrypts the socket.
 
-Since the TLS recvapp buffer is only temporarily available we need to copy anyway, so TLSContext/Handler can expose a standard Read for the decrypted socket.
+Since the TLS recvapp buffer is only temporarily available we need to copy the decrypted data into a more permanent buffer with the lifetime of the request, so TLSContext/Handler can expose a standard Read for the decrypted socket.
 
 I was thinking of setting the socket buffer size to the TLS record size, but that might not be optimal. If we can't read all the socket data into the recvrec buffer in one go, we'll just need to write several times because the data will be decrypted and on the application side be appended to a request-scoped buffer. For the case when that doesn't happen we might have to change the socket trigger to level triggered so we get events when there is still data in the socket?... this would be a weird scenario because the app should always straight away respond to events. If it doesn't read the decrypted data straight away that would be a bug almost.
 
 
-All handlers above TLSHandler will assume AsyncToken(0) refers to an event with a borrowed source.
 
 ## Generate a certificate on server start-up
 
