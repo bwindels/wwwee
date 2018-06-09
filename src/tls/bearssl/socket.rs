@@ -27,15 +27,6 @@ on every write we also call into bearssl but on Write::flush we tell
 bearssl to force a tls record. 
 */
 
-fn finish_io_with_count(byte_count: usize) -> Result<usize> {
-  if byte_count == 0 {
-    Err(Error::new(ErrorKind::WouldBlock, ""))
-  }
-  else {
-    Ok(byte_count)
-  }
-}
-
 struct SocketWrapper<'a> {
   engine: &'a mut engine::Context,
   socket: &'a mut Socket
@@ -44,10 +35,6 @@ struct SocketWrapper<'a> {
 impl<'a> SocketWrapper<'a> {
   pub fn new(engine: &'a mut engine::Context, socket: &'a mut Socket) -> SocketWrapper<'a> {
     SocketWrapper {engine, socket}
-  }
-
-  pub fn can_read(&self) -> bool {
-    self.engine.recvapp_buf().is_some()
   }
 
   pub fn can_write(&self) -> bool {
@@ -77,46 +64,48 @@ impl<'a> SocketWrapper<'a> {
   }
 }
 
-impl<'a> Read for SocketWrapper<'a> {
-  //TODO: also read from socket until WouldBlock here
-  fn read(&mut self, mut dst_buffer: &mut [u8]) -> Result<usize> {
+/// READING
+impl<'a> SocketWrapper<'a> {
+
+  pub fn can_read(&self) -> bool {
+    self.engine.recvapp_buf().is_some()
+  }
+
+  fn read_records(&mut self) -> Result<IoReport> {
     let socket : &mut Read = &mut self.socket;
     let engine = &mut self.engine;
-    let mut app_bytes_read = 0;
-    let mut remaining_buffer_space = dst_buffer.len();
-
-    while remaining_buffer_space != 0 {
-      // feed records into tls engine
-      let receive_result = engine.recvrec_buf()
-        .map(|buffer| receive_buffer(socket, buffer));
-
-      match receive_result {
-        Some(Err(err)) => return Err(err),
-        Some(Ok(read_result)) => {
-          if !read_result.is_empty() {
-            engine.recvapp_ack(read_result.byte_count())
+    // feed records from socket into tls engine
+    engine.recvrec_buf()
+      .map(|buffer| receive_buffer(socket, buffer))
+      .map(|read_result| {
+        if let Ok(report) = read_result {
+          if !report.is_empty() {
+            engine.recvapp_ack(report.byte_count())
               .map_err(|_| Error::new(ErrorKind::Other, "engine error after recvrec ack"))?;
           }
-        },
-        _ => {}
-      };
-      // any plaintext data available?
-      let len = if let Some(src_buffer) = engine.recvapp_buf() {
-        let len = cmp::min(src_buffer.len(), dst_buffer.len());
-        let op_src_buffer = &src_buffer[.. len];
-        let op_dst_buffer = &mut dst_buffer[.. len];
-        op_dst_buffer.copy_from_slice(op_src_buffer);
-        len
-      }
-      else {
-        return finish_io_with_count(app_bytes_read);
-      };
+        }
+        read_result
+      })
+      .unwrap_or(Ok(IoReport::with_buffer_size(0).ok(0)))
+  }
+
+  fn read_decrypted(&mut self, dst_buffer: &mut [u8]) -> Result<usize> {
+    let engine = &mut self.engine;
+    // any plaintext data available?
+    engine.recvapp_buf().map(|src_buffer| {
+      let len = cmp::min(src_buffer.len(), dst_buffer.len());
+      let op_src_buffer = &src_buffer[.. len];
+      let op_dst_buffer = &mut dst_buffer[.. len];
+      op_dst_buffer.copy_from_slice(op_src_buffer);
+      len
+    })
+    .map(|len| {
       engine.recvapp_ack(len)
         .map_err(|_| Error::new(ErrorKind::Other, "engine error after recvapp ack"))?;
-      app_bytes_read += len;
-      remaining_buffer_space -= len;
-      dst_buffer = &mut dst_buffer[len ..];
-      //read max (recvrec buffer size) bytes from socket,
+      Ok(len)
+    })
+    .unwrap_or(Ok(0))
+    //read max (recvrec buffer size) bytes from socket,
       //  if read is empty, bail out with Ok(bytes_read)
       //feed into recvrec buffer
       //get recvapp buffer
@@ -124,6 +113,32 @@ impl<'a> Read for SocketWrapper<'a> {
       //  copy recvapp buffer into dst_buffer
       //  increments bytes_read counter
       //  trim dst_buffer with amount of copied bytes
+  }
+}
+
+
+
+impl<'a> Read for SocketWrapper<'a> {
+
+  fn read(&mut self, dst_buffer: &mut [u8]) -> Result<usize> {
+    // let socket : &mut Read = &mut self.socket;
+    // let engine = &mut self.engine;
+    let buffer_len = dst_buffer.len();
+    let mut would_block = false;
+
+    //try read remaining decrypted bytes from last call to read
+    let mut app_bytes_read = self.read_decrypted(dst_buffer)?;
+
+    while !would_block && app_bytes_read != buffer_len {
+      let read_report = self.read_records()?;
+      would_block = read_report.would_block();
+      // not sure about this: if there are unconsumed bytes in 
+      if read_report.is_empty() {
+        return Ok(app_bytes_read)
+      }
+      //error handling, what to do if we get an error after a few iterations here?
+      //the data would be lost
+      app_bytes_read += self.read_decrypted(&mut dst_buffer[app_bytes_read ..])?;
     }
     Ok(app_bytes_read)
   }
