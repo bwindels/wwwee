@@ -4,6 +4,29 @@ use std::io::{Result, Error, ErrorKind, Read, Write};
 use super::wrapper::engine;
 use std::cmp;
 
+/**
+one the one hand we have a tcp socket, which when reading will give x amount of bytes
+we need to read into the recvrec buffer until ErrorKind::WouldBlock,
+after every read of the socket we need to try and decrypt the data,
+and let the handler process it (append it to it's request buffer)
+so we can clear some space in the recvrec and recvapp buffers.
+
+on the other hand, every time the handler receives data from the socket
+(or any other async event) it might want to send a response,
+which will mean writing to the sendapp buffer. When the sendapp buffer is full,
+we want to encrypt it into a tls record and send it out on the socket.
+We only want to return WouldBlock when the real socket buffer is full, not when
+the sendapp buffer is full, so we'll need to fill the buffer, encrypt,
+send out the sendrec buffer and do that again until all the bytes from
+the call to write have been sent.
+
+so on every read to call bearssl to try and decrypt the data, because
+we might have just received the end of a tls record.
+
+on every write we also call into bearssl but on Write::flush we tell
+bearssl to force a tls record. 
+*/
+
 fn finish_io_with_count(byte_count: usize) -> Result<usize> {
   if byte_count == 0 {
     Err(Error::new(ErrorKind::WouldBlock, ""))
