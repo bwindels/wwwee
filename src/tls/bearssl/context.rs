@@ -2,6 +2,18 @@ use ::buffer::PageBuffer;
 use super::wrapper::*;
 use super::{ReceiveRecordChannel, SendRecordChannel};
 
+/*
+there are 4 buffers in the context:
+2 app buffers, which deal with plaintext
+2 rec(ord) buffers, which deal with encrypted data
+both the app and rec buffer pairs have send and receive buffers
+so:
+  recvrec buffer is for encrypted data read from the socket 
+  sendrec buffer is for encrypted data to write to the socket 
+  recvapp buffer is for decrypted data to process
+  sendapp buffer is for data to be encrypted and sent over the socket 
+*/
+
 pub struct TLSContext<'a> {
   buffer: PageBuffer,
   server_context: server::Context<'a>,
