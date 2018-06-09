@@ -90,7 +90,7 @@ impl IoReport {
   }
 
   pub fn is_complete(&self) -> bool {
-    self.byte_count == self.buffer_size
+    !self.is_empty() && self.byte_count == self.buffer_size
   }
 
   pub fn is_empty(&self) -> bool {
