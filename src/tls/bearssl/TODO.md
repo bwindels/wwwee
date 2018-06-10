@@ -8,9 +8,6 @@ First thing to support is a hardcoded, self-signed certificate. Just old-school 
 
 ## Shortlist:
 
-- finish SocketWrapper
-  - cleanup SocketWrapper::write methods, same style as read methods.
-  - Only 1 impl SocketWrapper as well
 - finish TLSHandler
   - handle TLS handshake and if plaintext data is available send to child handler with wrapped socket
 - if we don't need the record channel wrappers after this, get rid of them
