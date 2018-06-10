@@ -89,6 +89,10 @@ impl IoReport {
     self.would_block
   }
 
+  pub fn should_retry(&self) -> bool {
+    !self.is_empty() && !self.would_block()
+  }
+
   pub fn is_complete(&self) -> bool {
     !self.is_empty() && self.byte_count == self.buffer_size
   }
