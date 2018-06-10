@@ -120,18 +120,12 @@ impl<T, F> Server<T, F>
         &mut connection.socket);
 
       let r = event.readiness();
-      // TODO: we can merge these events into one call probably
-      if r.is_readable() {
-        let io_event = io::Event::new(token.async_token(), io::EventKind::Readable);
-        if let Some(_) = connection.handler.handle_event(&io_event, &mut ctx) {
-          return Some(conn_idx);
-        }
-      }
-      if r.is_writable() {
-        let io_event = io::Event::new(token.async_token(), io::EventKind::Writable);
-        if let Some(_) = connection.handler.handle_event(&io_event, &mut ctx) {
-          return Some(conn_idx);
-        }
+      let event_kind = io::EventKind::new()
+        .with_readable(r.is_readable())
+        .with_writable(r.is_writable());
+      let io_event = io::Event::new(token.async_token(), event_kind);
+      if let Some(_) = connection.handler.handle_event(&io_event, &mut ctx) {
+        return Some(conn_idx);
       }
     }
     None

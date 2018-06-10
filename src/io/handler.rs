@@ -20,24 +20,44 @@ impl Event {
 }
 
 #[derive(Clone, Copy)]
-pub enum EventKind {
-  Readable,
-  Writable
-}
+pub struct EventKind(usize);
+
+const READABLE : usize = 0b01;
+const WRITABLE : usize = 0b01;
 
 impl EventKind {
-  pub fn is_readable(self) -> bool {
-    match self {
-      EventKind::Readable => true,
-      _ => false
+  pub fn new() -> EventKind {
+    EventKind(0)
+  }
+
+  pub fn with_readable(self, readable: bool) -> EventKind {
+    if readable {
+      EventKind(self.0 | READABLE)
+    }
+    else {
+      self
     }
   }
 
-  pub fn is_writable(self) -> bool {
-    match self {
-      EventKind::Writable => true,
-      _ => false
+  pub fn with_writable(self, writable: bool) -> EventKind {
+    if writable {
+      EventKind(self.0 | WRITABLE)
     }
+    else {
+      self
+    }
+  }
+
+  pub fn is_readable(self) -> bool {
+    (self.0 & READABLE) != 0
+  }
+
+  pub fn is_writable(self) -> bool {
+    (self.0 & WRITABLE) != 0
+  }
+
+  pub fn has_any(self) -> bool {
+    self.0 != 0
   }
 }
 
