@@ -80,7 +80,7 @@ impl<'a> SocketWrapper<'a> {
       .map(|read_result| {
         if let Ok(report) = read_result {
           if !report.is_empty() {
-            engine.recvapp_ack(report.byte_count())
+            engine.recvrec_ack(report.byte_count())
               .map_err(|_| Error::new(ErrorKind::Other, "engine error after recvrec ack"))?;
           }
         }
