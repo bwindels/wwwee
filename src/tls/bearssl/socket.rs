@@ -37,21 +37,21 @@ impl<'a> SocketWrapper<'a> {
     SocketWrapper {engine, socket}
   }
 
-  pub fn can_write(&self) -> bool {
+  pub fn is_writable(&self) -> bool {
     self.engine.sendapp_buf().is_some()
   }
 
-  pub fn can_read(&self) -> bool {
+  pub fn is_readable(&self) -> bool {
     self.engine.recvapp_buf().is_some()
   }
 
   /// tries to send tls records over the socket
   //returns IoReport because could interact with real socket that returns would_block
-  fn write_records(&mut self) -> Result<IoReport> {
+  pub fn write_records(&mut self) -> Result<IoReport> {
     let engine = &mut self.engine;
     let socket : &mut Write = &mut self.socket;
     engine.sendrec_buf()
-      .map(|sendrec_buffer| send_buffer(socket, sendrec_buffer))
+      .map(|buffer| send_buffer(socket, buffer))
       .map(|write_result| {
         if let Ok(report) = write_result {
           if !report.is_empty() {
@@ -66,7 +66,7 @@ impl<'a> SocketWrapper<'a> {
   }
   
   //returns IoReport because could interact with real socket that returns would_block
-  fn read_records(&mut self) -> Result<IoReport> {
+  pub fn read_records(&mut self) -> Result<IoReport> {
     let socket : &mut Read = &mut self.socket;
     let engine = &mut self.engine;
     // feed records from socket into tls engine
@@ -126,20 +126,13 @@ impl<'a> SocketWrapper<'a> {
 impl<'a> Read for SocketWrapper<'a> {
 
   fn read(&mut self, dst_buffer: &mut [u8]) -> Result<usize> {
-    // let socket : &mut Read = &mut self.socket;
-    // let engine = &mut self.engine;
     let buffer_len = dst_buffer.len();
-    let mut would_block = false;
+    let mut should_retry = true;
     //try read remaining decrypted bytes from last call to read
     let mut app_bytes_read = self.read_plaintext(dst_buffer)?;
 
-    while !would_block && app_bytes_read != buffer_len {
-      let read_report = self.read_records()?;
-      would_block = read_report.would_block();
-      // not sure about this: if there are unconsumed bytes in 
-      if read_report.is_empty() {
-        return Ok(app_bytes_read)
-      }
+    while should_retry && app_bytes_read != buffer_len {
+      should_retry = self.read_records()?.should_retry();
       //error handling, what to do if we get an error after a few iterations here?
       //the data would be lost
       app_bytes_read += self.read_plaintext(&mut dst_buffer[app_bytes_read ..])?;
@@ -158,19 +151,18 @@ impl<'a> ReadSizeHint for SocketWrapper<'a> {
 impl<'a> Write for SocketWrapper<'a> {
   fn write(&mut self, src_buffer: &[u8]) -> Result<usize> {
     let buffer_len = src_buffer.len();
-    let mut cant_write_all = false;
-    let mut app_bytes_written = self.write_plaintext(src_buffer)?;
+    let mut should_retry = true;
+    let mut app_bytes_written = 0;
 
-    while !cant_write_all && app_bytes_written != buffer_len {
+    while should_retry && app_bytes_written != buffer_len {
       app_bytes_written += self.write_plaintext(&src_buffer[app_bytes_written ..])?;      
-      let write_report = self.write_records()?;
       //we fed the tls engine as much plaintext as we could
       //then we tried writing out to the socket
       //if this fails to write any bytes
       //it's best to not keep trying
       //to not end up in an endless loop.
       //also stop on would_block
-      cant_write_all = write_report.is_empty() || write_report.would_block();
+      should_retry = self.write_records()?.should_retry();
     }
     Ok(app_bytes_written)
   }
