@@ -46,6 +46,10 @@ impl<'a> Context<'a>
   pub fn socket(&mut self) -> &mut Socket {
     self.socket
   }
+
+  pub fn with_socket(&'a self, socket: &'a mut Socket) -> Context {
+    Context { socket, ..*self }
+  }
   
   fn alloc_token(&mut self) -> Token {
     let async_token = self.token_source.alloc_async_token();
