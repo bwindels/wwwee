@@ -6,6 +6,13 @@ pub struct Handler<H> {
   is_writable: bool
 }
 
+/*
+here we need to
+- handle gracefully when the socket isn't writable (wait for next event to send)
+- check upon receiving records whether there is something to send out again (handshake!)
+- check if there is plaintext available, if so, wrap the socket and forward the event to child_handler 
+*/
+
 impl<T, H: io::Handler<T>> io::Handler<T> for Handler<H> {
   fn handle_event(&mut self, event: &io::Event, ctx: &io::Context) -> Option<T> {
 

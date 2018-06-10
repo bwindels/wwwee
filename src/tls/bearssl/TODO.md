@@ -1,32 +1,26 @@
 # Roadmap to TLS support
 
-## Shortlist:
-  2. write skey decoder function
-  3. implement context
-  4. implement rec channels
-  5. implement socket
-  6. implement Buffer::read_from_with_hint
 
 ## Hardcoded, self-signed certificate
 
 First thing to support is a hardcoded, self-signed certificate. Just old-school RSA, no elliptic curve. 
 
 
-### Write TLSContext helper
-  - make PageBuffer api public
-  - allocate PageBuffer of size BR_SSL_BUFSIZE_BIDI
-  - TLSContext contains the PageBuffer so it doesn't have to borrow the buffer to pass it to brssl
-  - check error after every input and drop socket on error
+## Shortlist:
 
-### Write TLSHandler
+- finish SocketWrapper
+  - cleanup SocketWrapper::write methods, same style as read methods.
+  - Only 1 impl SocketWrapper as well
+- finish TLSHandler
+  - handle TLS handshake and if plaintext data is available send to child handler with wrapped socket
+- if we don't need the record channel wrappers after this, get rid of them
+  they do sort of nicely put the \_buf with \_ack calls together. Just noticed a bug in socket in this regard.
+- implement Buffer::read_from_with_hint
+- finish TLSContext code to take x509 cert chain and secret key, load everything into a usable TLSContext and Handler
 
-It's an io::Handler that has a child io::Handler to forward events to it's child with decoded data. Handlers receive a trait object to the socket when handling an event. The TLSHandler will provide a wrapper for the socket the transparantly en/decrypts the socket.
-
-Since the TLS recvapp buffer is only temporarily available we need to copy the decrypted data into a more permanent buffer with the lifetime of the request, so TLSContext/Handler can expose a standard Read for the decrypted socket.
+## Notes
 
 I was thinking of setting the socket buffer size to the TLS record size, but that might not be optimal. If we can't read all the socket data into the recvrec buffer in one go, we'll just need to write several times because the data will be decrypted and on the application side be appended to a request-scoped buffer. For the case when that doesn't happen we might have to change the socket trigger to level triggered so we get events when there is still data in the socket?... this would be a weird scenario because the app should always straight away respond to events. If it doesn't read the decrypted data straight away that would be a bug almost.
-
-
 
 ## Generate a certificate on server start-up
 
