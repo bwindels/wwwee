@@ -1,9 +1,37 @@
+use std;
 use io;
+use super::context::Context;
 
-pub struct Handler<H> {
-  tls_context: Context,
-  child_handler: H,
-  is_writable: bool
+pub struct Handler<'a, H> {
+  tls_context: Context<'a>,
+  child_handler: H
+}
+
+impl<'a, T, H: io::Handler<T>> Handler<'a, H> {
+  fn handle_socket_event(&mut self, event: &io::Event, ctx: &io::Context) -> std::io::Result<Option<H::Result>> {
+    let tls_socket = self.tls_context.wrap_socket(ctx.socket());
+    let event_kind = event.kind();
+
+    if event_kind.is_readable() {
+      while tls_socket.read_records()?.should_retry() {};
+    }
+    if event_kind.is_writable() {
+      while tls_socket.write_records()?.should_retry() {};
+    }
+
+    let child_event_kind = event_kind
+      .with_readable(tls_socket.is_readable())
+      .with_writable(tls_socket.is_writable());
+
+    if child_event_kind.has_any() {
+      let child_event = event.with_kind(child_event_kind);
+      let child_ctx = ctx.with_socket(tls_socket);
+      Ok(self.child_handler.handle_event(&child_event, child_ctx))
+    }
+    else {
+      Ok(None) //need more events
+    }
+  }
 }
 
 /*
@@ -13,38 +41,18 @@ here we need to
 - check if there is plaintext available, if so, wrap the socket and forward the event to child_handler 
 */
 
-impl<T, H: io::Handler<T>> io::Handler<T> for Handler<H> {
+impl<'a, T, H: io::Handler<T>> io::Handler<T> for Handler<'a, H> {
   fn handle_event(&mut self, event: &io::Event, ctx: &io::Context) -> Option<T> {
 
-    loop {
-      self.is_writable = self.is_writable || event.is_writable();
-      if event.token() == socket.token() {
-        if event.is_readable() {
-          if let Some(receive_channel) = self.tls_context.receive_record_channel() {
-            receive_channel.read_from(socket)?; //WouldBlock/EAGAIN here indicates nothing left to read
-            //any internal TLS responses we can send straight away?
-            if let Some(send_channel) = self.tls_context.send_record_channel() {
-              send_channel.write_to(socket)?;
-            }
-          }
-          else {
-            // Aaargh, what to do here? We've got data but bearssl is not ready to receive it!
-          }
-        }
-        if self.is_writable {
-          //try to write anything we've got (e.g . last records of end of response)
-          while let Some(send_channel) = self.tls_context.send_record_channel() {
-            send_channel.write_to(socket)?;
-          }
-        }
-      }
-      let s = self.tls_context.wrap_socket(socket);
-      if s.can_read() {
-        let ctx = ctx.with_wrapped_socket(s);
-        self.child_handler.handle_event(event, &ctx)?;
-      }
-      // need to flush here?
+    if ctx.socket().is_source_of(event) {
+      let result = self.handle_socket_event(event, ctx);
+      //result.map_err()
+      result.unwrap()
     }
-
+    else {
+      let tls_socket = self.tls_context.wrap_socket(ctx.socket());
+      self.child_handler.handle_event(event,
+        ctx.with_socket(tls_socket))
+    }
   }
 }
