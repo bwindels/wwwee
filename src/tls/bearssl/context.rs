@@ -14,16 +14,16 @@ so:
   sendapp buffer is for data to be encrypted and sent over the socket 
 */
 
-pub struct TLSContext<'a> {
+pub struct Context<'a> {
   buffer: PageBuffer,
   server_context: server::Context<'a>,
 }
 
-impl<'a> TLSContext<'a> {
+impl<'a> Context<'a> {
   pub fn from_certificate(
     certificate_chain: &'a [x509::Certificate<'a>],
     key: &'a secret::Key<'a>)
-  -> Result<TLSContext<'a>>
+  -> Result<Context<'a>>
   {
     let mut server_context = match key {
       &secret::Key::Rsa(rsa_key) => {
@@ -38,7 +38,7 @@ impl<'a> TLSContext<'a> {
     server_context.engine_mut().set_buffer(buffer.as_mut_slice(), true);
     server_context.reset()?;
     server_context.engine().last_error().map(|_| {
-      TLSContext {
+      Context {
         buffer,
         server_context
       }
