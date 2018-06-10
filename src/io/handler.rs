@@ -17,6 +17,10 @@ impl Event {
   pub fn kind(&self) -> EventKind {
     self.kind
   }
+
+  pub fn with_kind(&self, kind: EventKind) -> Event {
+    Event {token: self.token, kind}
+  }
 }
 
 #[derive(Clone, Copy)]
