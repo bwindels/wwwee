@@ -71,7 +71,10 @@ impl<'a> Context<'a> {
     }
   }
 
-  pub fn wrap_socket(&'a mut self, socket: &'a mut io::Socket) -> SocketWrapper<'a> {
-    SocketWrapper::new(&mut self.server_context.engine_mut(), socket)
+  pub fn wrap_socket<'b, 's>(&'s mut self, socket: &'b mut io::Socket)
+    -> SocketWrapper<'b>
+    where 's: 'b
+  {
+    SocketWrapper::new(self.server_context.engine_mut(), socket)
   }
 }

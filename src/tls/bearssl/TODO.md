@@ -8,8 +8,6 @@ First thing to support is a hardcoded, self-signed certificate. Just old-school 
 
 ## Shortlist:
 
-- finish TLSHandler
-  - handle TLS handshake and if plaintext data is available send to child handler with wrapped socket
 - if we don't need the record channel wrappers after this, get rid of them
   they do sort of nicely put the \_buf with \_ack calls together. Just noticed a bug in socket in this regard.
 - implement Buffer::read_from_with_hint

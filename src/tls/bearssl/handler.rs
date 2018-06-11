@@ -8,11 +8,12 @@ pub struct Handler<'a, H> {
 }
 
 impl<'a, H> Handler<'a, H> {
-  fn handle_socket_event<T>(&mut self, event: &io::Event, ctx: &io::Context)
+  fn handle_socket_event<T>(&mut self, event: &io::Event, ctx: &mut io::Context)
     -> std::io::Result<Option<T>>
     where H: io::Handler<T>
   {
-    let tls_socket = self.tls_context.wrap_socket(ctx.socket());
+    let (socket, child_ctx_factory) = ctx.as_socket_and_factory(); 
+    let mut tls_socket = self.tls_context.wrap_socket(socket);
     let event_kind = event.kind();
 
     if event_kind.is_readable() {
@@ -28,7 +29,7 @@ impl<'a, H> Handler<'a, H> {
 
     if child_event_kind.has_any() {
       let child_event = event.with_kind(child_event_kind);
-      let child_ctx = ctx.with_socket(&mut tls_socket);
+      let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);
       Ok(self.child_handler.handle_event(&child_event, &mut child_ctx))
     }
     else {
@@ -53,8 +54,9 @@ impl<'a, T, H: io::Handler<T>> io::Handler<T> for Handler<'a, H> {
       result.unwrap()
     }
     else {
-      let tls_socket = self.tls_context.wrap_socket(ctx.socket());
-      let child_ctx = ctx.with_socket(&mut tls_socket);
+      let (socket, child_ctx_factory) = ctx.as_socket_and_factory();
+      let mut tls_socket = self.tls_context.wrap_socket(socket);
+      let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);
       self.child_handler.handle_event(event, &mut child_ctx)
     }
   }
