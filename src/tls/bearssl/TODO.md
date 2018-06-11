@@ -8,8 +8,6 @@ First thing to support is a hardcoded, self-signed certificate. Just old-school 
 
 ## Shortlist:
 
-- if we don't need the record channel wrappers after this, get rid of them
-  they do sort of nicely put the \_buf with \_ack calls together. Just noticed a bug in socket in this regard.
 - implement Buffer::read_from_with_hint
 - finish TLSContext code to take x509 cert chain and secret key, load everything into a usable TLSContext and Handler
 

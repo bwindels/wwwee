@@ -2,7 +2,6 @@ use io;
 use ::buffer::PageBuffer;
 use super::wrapper::*;
 use super::socket::SocketWrapper;
-use super::{ReceiveRecordChannel, SendRecordChannel};
 
 /*
 there are 4 buffers in the context:
@@ -45,30 +44,6 @@ impl<'a> Context<'a> {
         server_context
       }
     })
-  }
-
-  /// write source for incoming encrypted data
-  pub fn receive_record_channel(&'a mut self) -> Option<ReceiveRecordChannel<'a>> {
-    let engine = self.server_context.engine_mut();
-    let buffer_available = engine.recvrec_buf().is_some();
-    if buffer_available {
-      Some(ReceiveRecordChannel::new(engine))
-    }
-    else {
-      None
-    }
-  }
-
-  /// reader for encrypted data to be sent to peer
-  pub fn send_record_channel(&'a mut self) -> Option<SendRecordChannel<'a>> {
-    let engine = self.server_context.engine_mut();
-    let buffer_available = engine.sendrec_buf().is_some();
-    if buffer_available {
-      Some(SendRecordChannel::new(engine))
-    }
-    else {
-      None
-    }
   }
 
   pub fn wrap_socket<'b, 's>(&'s mut self, socket: &'b mut io::Socket)
