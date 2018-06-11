@@ -27,7 +27,7 @@ on every write we also call into bearssl but on Write::flush we tell
 bearssl to force a tls record. 
 */
 
-struct SocketWrapper<'a> {
+pub struct SocketWrapper<'a> {
   engine: &'a mut engine::Context,
   socket: &'a mut Socket
 }

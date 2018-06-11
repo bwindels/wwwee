@@ -1,5 +1,7 @@
+use io;
 use ::buffer::PageBuffer;
 use super::wrapper::*;
+use super::socket::SocketWrapper;
 use super::{ReceiveRecordChannel, SendRecordChannel};
 
 /*
@@ -68,10 +70,8 @@ impl<'a> Context<'a> {
       None
     }
   }
-/*
-  // reader/writer for plaintext data
-  pub fn wrap_socket(&'a mut self, socket: &io::Socket) -> &WrappedSocket<'a> {
-    WrappedSocket {ctx: &mut self, socket}
+
+  pub fn wrap_socket(&'a mut self, socket: &'a mut io::Socket) -> SocketWrapper<'a> {
+    SocketWrapper::new(&mut self.server_context.engine_mut(), socket)
   }
-*/
 }

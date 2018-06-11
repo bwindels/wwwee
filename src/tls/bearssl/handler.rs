@@ -7,8 +7,11 @@ pub struct Handler<'a, H> {
   child_handler: H
 }
 
-impl<'a, T, H: io::Handler<T>> Handler<'a, H> {
-  fn handle_socket_event(&mut self, event: &io::Event, ctx: &io::Context) -> std::io::Result<Option<H::Result>> {
+impl<'a, H> Handler<'a, H> {
+  fn handle_socket_event<T>(&mut self, event: &io::Event, ctx: &io::Context)
+    -> std::io::Result<Option<T>>
+    where H: io::Handler<T>
+  {
     let tls_socket = self.tls_context.wrap_socket(ctx.socket());
     let event_kind = event.kind();
 
@@ -25,8 +28,8 @@ impl<'a, T, H: io::Handler<T>> Handler<'a, H> {
 
     if child_event_kind.has_any() {
       let child_event = event.with_kind(child_event_kind);
-      let child_ctx = ctx.with_socket(tls_socket);
-      Ok(self.child_handler.handle_event(&child_event, child_ctx))
+      let child_ctx = ctx.with_socket(&mut tls_socket);
+      Ok(self.child_handler.handle_event(&child_event, &mut child_ctx))
     }
     else {
       Ok(None) //need more events
@@ -42,7 +45,7 @@ here we need to
 */
 
 impl<'a, T, H: io::Handler<T>> io::Handler<T> for Handler<'a, H> {
-  fn handle_event(&mut self, event: &io::Event, ctx: &io::Context) -> Option<T> {
+  fn handle_event(&mut self, event: &io::Event, ctx: &mut io::Context) -> Option<T> {
 
     if ctx.socket().is_source_of(event) {
       let result = self.handle_socket_event(event, ctx);
@@ -51,8 +54,8 @@ impl<'a, T, H: io::Handler<T>> io::Handler<T> for Handler<'a, H> {
     }
     else {
       let tls_socket = self.tls_context.wrap_socket(ctx.socket());
-      self.child_handler.handle_event(event,
-        ctx.with_socket(tls_socket))
+      let child_ctx = ctx.with_socket(&mut tls_socket);
+      self.child_handler.handle_event(event, &mut child_ctx)
     }
   }
 }
