@@ -22,6 +22,7 @@ impl<'a> Certificate<'a> {
   }
 }
 
+#[derive(Debug)]
 pub enum Error {
   InvalidValue = BR_ERR_X509_INVALID_VALUE as isize,
   Truncated = BR_ERR_X509_TRUNCATED as isize,
