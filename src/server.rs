@@ -13,7 +13,7 @@ fn initialize_connections<T>() -> [Option<Connection<T>>; CONNECTION_COUNT] {
     unsafe { std::mem::uninitialized() };
   
   for conn in connections.iter_mut() {
-    *conn = None;
+    unsafe { std::ptr::write(conn, None) };
   }
   connections
 }
