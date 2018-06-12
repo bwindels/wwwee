@@ -7,10 +7,10 @@ pub struct Certificate<'a> {
 }
 
 impl<'a> Certificate<'a> {
-  pub fn from_bytes(certificate: &mut [u8]) -> Certificate<'a> {
+  pub fn from_bytes(certificate: &[u8]) -> Certificate<'a> {
     Certificate {
       cert: br_x509_certificate {
-        data: certificate.as_mut_ptr(),
+        data: certificate.as_ptr() as *mut u8,
         data_len: certificate.len()
       },
       lt: PhantomData
