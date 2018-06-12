@@ -46,6 +46,7 @@
         - [ ] working https client for this to call lets encrypt api
           - [ ] need http client support
           - [ ] need working ca list to work with bearssl
+ - [ ] use one PageBuffer for both TLS and request buffer, split it up somehow in one static and one growable buffer.
  - [ ] implement json parser/writer
  - [ ] implement cross-request state
  - [ ] implement cross-application state based on configuration dictionary to support things like persistent sqlite handle
