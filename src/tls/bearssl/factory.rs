@@ -9,20 +9,13 @@ pub struct HandlerFactory<'a> {
   trust_chain: [x509::Certificate<'a>; 1],
 }
 
-#[derive(Debug)]
-pub enum ParseError {
-  PrivateKey(x509::Error)
-}
-
 impl<'a> HandlerFactory<'a> {
   
-  pub fn new(x509_cert: &'a [u8], private_key: &'a [u8]) -> std::result::Result<HandlerFactory<'a>, ParseError> {
+  pub fn new(x509_cert: &'a [u8], private_key: &'a [u8]) -> std::result::Result<HandlerFactory<'a>, x509::Error> {
     let cert = x509::Certificate::from_bytes(x509_cert);
     let trust_chain = [cert];
     let private_key_decoder = secret::DecoderContext::from_bytes(private_key);
-    let private_key = private_key_decoder
-      .get_key()
-      .map_err(|err| ParseError::PrivateKey(err))?;
+    let private_key = private_key_decoder.get_key()?;
     Ok(HandlerFactory { trust_chain, private_key })
   }
 
