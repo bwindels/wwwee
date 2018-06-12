@@ -8,6 +8,10 @@ pub struct Handler<'a, H> {
 }
 
 impl<'a, H> Handler<'a, H> {
+  pub fn new(tls_context: Context<'a>, child_handler: H) -> Handler<'a, H> {
+    Handler {tls_context, child_handler}
+  }
+
   fn handle_socket_event<T>(&mut self, event: &io::Event, ctx: &mut io::Context)
     -> std::io::Result<Option<T>>
     where H: io::Handler<T>

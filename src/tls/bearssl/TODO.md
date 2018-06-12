@@ -9,11 +9,17 @@ First thing to support is a hardcoded, self-signed certificate. Just old-school 
 ## Shortlist:
 
 - implement Buffer::read_from_with_hint
-- finish TLSContext code to take x509 cert chain and secret key, load everything into a usable TLSContext and Handler
+- DONE: research how memory is borrowed inside bearssl to annotate things with more precise lifetimes. structs to research:
+  - br_skey_decoder_context
+      we can see in samples/key-rsa.h that an rsa private key exist out of several largeish blobs (the pointers who's origin we're uncertain of). I want to find out if the memory backing these pointers is backed by the actual private key DER buffer, or something else? if so where does that memory come from? Fixed sized allocation? The actual decoder code (skey_decoder.c) is generated from code written in a macro language (T0) so a bit hard to read.
+
+      seems to be backed by DER buffer!
+  - br_rsa_private_key
+  - br_ec_private_key
 
 ## Notes
 
-I was thinking of setting the socket buffer size to the TLS record size, but that might not be optimal. If we can't read all the socket data into the recvrec buffer in one go, we'll just need to write several times because the data will be decrypted and on the application side be appended to a request-scoped buffer. For the case when that doesn't happen we might have to change the socket trigger to level triggered so we get events when there is still data in the socket?... this would be a weird scenario because the app should always straight away respond to events. If it doesn't read the decrypted data straight away that would be a bug almost.
+I was thinking of setting the socket buffer size to the TLS record size, but that might not be optimal. If we can't read all the socket data into the recvrec buffer in one go, we'll just need to write several times because the data will be decrypted and on the application side be appended to a request-scoped buffer (pumping it piece-by-piece through the tls pipeline). For the case when that doesn't happen we might have to change the socket trigger to level triggered so we get events when there is still data in the socket?... this would be a weird scenario because the app should always straight away respond to events. If it doesn't read the decrypted data straight away that would be a bug almost.
 
 ## Generate a certificate on server start-up
 
