@@ -62,7 +62,7 @@ impl<T: RequestHandler> io::Handler<Option<ResponseWriter>> for Handler<T>
         Some(None)   //drop request
       },
       Ok(0) => {
-        Some(None)   //drop request
+        None //spurious wake-up, ignore and wait for next socket event
       },
       Ok(_) => {
         let mut read_buffer = self.read_buffer.as_mut_slice();
