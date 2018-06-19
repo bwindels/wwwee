@@ -24,10 +24,10 @@ impl Event {
 }
 
 #[derive(Clone, Copy)]
-pub struct EventKind(usize);
+pub struct EventKind(pub usize);
 
 const READABLE : usize = 0b01;
-const WRITABLE : usize = 0b01;
+const WRITABLE : usize = 0b10;
 
 impl EventKind {
   pub fn new() -> EventKind {
@@ -39,7 +39,7 @@ impl EventKind {
       EventKind(self.0 | READABLE)
     }
     else {
-      self
+      EventKind(self.0 & !READABLE)
     }
   }
 
@@ -48,7 +48,7 @@ impl EventKind {
       EventKind(self.0 | WRITABLE)
     }
     else {
-      self
+      EventKind(self.0 & !WRITABLE)
     }
   }
 
@@ -67,4 +67,45 @@ impl EventKind {
 
 pub trait Handler<T> {
   fn handle_event(&mut self, event: &Event, ctx: &mut Context) -> Option<T>;
+}
+
+#[cfg(test)]
+mod tests {
+  use super::EventKind;
+
+  #[test]
+  fn test_readable() {
+    let no = EventKind::new().with_readable(false);
+    assert!(!no.is_readable());
+    assert!(!no.has_any());
+    let yes = EventKind::new().with_readable(true);
+    assert!(yes.is_readable());
+    assert!(yes.has_any());
+
+
+    let yes_then_no = EventKind::new().with_readable(true).with_readable(false);
+    assert!(!yes_then_no.is_readable());
+  }
+
+  #[test]
+  fn test_writable() {
+    let no = EventKind::new().with_writable(false);
+    assert!(!no.is_writable());
+    assert!(!no.has_any());
+    let yes = EventKind::new().with_writable(true);
+    assert!(yes.is_writable());
+    assert!(yes.has_any());
+
+    let yes_then_no = EventKind::new().with_writable(true).with_writable(false);
+    assert!(!yes_then_no.is_writable());
+  }
+
+  #[test]
+  fn test_writable_readable() {
+    let no = EventKind::new().with_writable(false).with_readable(false);
+    assert!(!no.is_readable());
+    assert!(!no.is_writable());
+    assert!(!no.has_any());
+  }
+  
 }
