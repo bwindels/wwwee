@@ -34,30 +34,33 @@ impl EventKind {
     EventKind(0)
   }
 
-  pub fn with_readable(self, readable: bool) -> EventKind {
-    if readable {
-      EventKind(self.0 | READABLE)
+  fn with_flag(self, flag: usize, value: bool) -> EventKind {
+    if value {
+      EventKind(self.0 | flag)
     }
     else {
-      EventKind(self.0 & !READABLE)
+      EventKind(self.0 & !flag)
     }
+  }
+
+  fn has_flag(self, flag: usize) -> bool {
+    (self.0 & flag) != 0
+  }
+
+  pub fn with_readable(self, readable: bool) -> EventKind {
+    self.with_flag(READABLE, readable)
   }
 
   pub fn with_writable(self, writable: bool) -> EventKind {
-    if writable {
-      EventKind(self.0 | WRITABLE)
-    }
-    else {
-      EventKind(self.0 & !WRITABLE)
-    }
+    self.with_flag(WRITABLE, writable)
   }
 
   pub fn is_readable(self) -> bool {
-    (self.0 & READABLE) != 0
+    self.has_flag(READABLE)
   }
 
   pub fn is_writable(self) -> bool {
-    (self.0 & WRITABLE) != 0
+    self.has_flag(WRITABLE)
   }
 
   pub fn has_any(self) -> bool {
