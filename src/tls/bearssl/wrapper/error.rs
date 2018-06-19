@@ -1,6 +1,6 @@
 use super::ffi::*;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Error {
   BadParam = BR_ERR_BAD_PARAM as isize,
   BadState = BR_ERR_BAD_STATE as isize,

@@ -81,6 +81,13 @@ impl Context {
     }
   }
 
+  pub fn state(&self) -> State {
+    let state = unsafe {
+      br_ssl_engine_current_state(self as *const Context)
+    };
+    State(state)
+  }
+
   pub fn close(&mut self) {
     unsafe {
       br_ssl_engine_close(self as *mut Context)
@@ -107,6 +114,65 @@ impl Context {
       Err(err)
     }
   }
+}
+
+#[derive(Clone, Copy)]
+pub struct State(u32);
+
+impl State {
+  pub fn includes(self, flag: StateFlag) -> bool {
+    (self.0 & flag as u32) != 0
+  }
+}
+
+impl IntoIterator for State {
+  type Item = StateFlag;
+  type IntoIter = StateIterator;
+
+  fn into_iter(self) -> Self::IntoIter {
+    StateIterator(0u8, self.0)
+  }
+}
+
+pub struct StateIterator(u8, u32);
+impl Iterator for StateIterator {
+  type Item = StateFlag;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    loop {
+      let idx = self.0;
+      let state = self.1;
+      self.0 += 1;
+      match idx {
+        0 => if (state & BR_SSL_CLOSED) != 0 {
+          return Some(StateFlag::Closed);
+        },
+        1 => if (state & BR_SSL_SENDREC) != 0 {
+          return Some(StateFlag::SendRec);
+        },
+        2 => if (state & BR_SSL_RECVREC) != 0 {
+          return Some(StateFlag::RecvRec);
+        },
+        3 => if (state & BR_SSL_SENDAPP) != 0 {
+          return Some(StateFlag::SendApp);
+        },
+        4 => if (state & BR_SSL_RECVAPP) != 0 {
+          return Some(StateFlag::RecvApp);
+        },
+        _ => return None
+      }
+      
+    }
+  }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum StateFlag {
+  Closed = BR_SSL_CLOSED as isize,
+  SendRec = BR_SSL_SENDREC as isize,
+  RecvRec = BR_SSL_RECVREC as isize,
+  SendApp = BR_SSL_SENDAPP as isize,
+  RecvApp = BR_SSL_RECVAPP as isize
 }
 
 fn ptr_to_slice<'a>(ptr: *mut std::os::raw::c_uchar, len: usize) -> Option<&'a mut [u8]> {

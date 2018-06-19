@@ -38,11 +38,11 @@ impl<'a> SocketWrapper<'a> {
   }
 
   pub fn is_writable(&self) -> bool {
-    self.engine.sendapp_buf().is_some()
+    self.engine.state().includes(engine::StateFlag::SendApp)
   }
 
   pub fn is_readable(&self) -> bool {
-    self.engine.recvapp_buf().is_some()
+    self.engine.state().includes(engine::StateFlag::RecvApp)
   }
 
   /// tries to send tls records over the socket
