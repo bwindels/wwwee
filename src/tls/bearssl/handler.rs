@@ -16,6 +16,7 @@ impl<'a, H> Handler<'a, H> {
     -> std::io::Result<Option<T>>
     where H: io::Handler<T>
   {
+    println!("handling socket event in TLS handler");
     let (socket, child_ctx_factory) = ctx.as_socket_and_factory(); 
     let mut tls_socket = self.tls_context.wrap_socket(socket);
     let event_kind = event.kind();
@@ -27,16 +28,23 @@ impl<'a, H> Handler<'a, H> {
       while tls_socket.write_records()?.should_retry() {};
     }
 
+    println!("done with pre-child I/O");
+
+
     let child_event_kind = event_kind
       .with_readable(tls_socket.is_readable())
       .with_writable(tls_socket.is_writable());
 
+    // println!("after handshake attempt, tls socket is readable={}, writable={}, child_event_kind.has_any()={}, child_event_kind.0={}", tls_socket.is_readable(), tls_socket.is_writable(), child_event_kind.has_any(), child_event_kind.0);
+
     if child_event_kind.has_any() {
+      // tls_socket.debug_state("forwarding socket event to child handler");
       let child_event = event.with_kind(child_event_kind);
       let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);
       Ok(self.child_handler.handle_event(&child_event, &mut child_ctx))
     }
     else {
+      // println!("waiting for more events before forwarding to child handler");
       Ok(None) //need more events
     }
   }
@@ -58,6 +66,7 @@ impl<'a, T, H: io::Handler<T>> io::Handler<T> for Handler<'a, H> {
       result.expect("socket handler should not error")
     }
     else {
+      println!("non socket event, forward to child");
       let (socket, child_ctx_factory) = ctx.as_socket_and_factory();
       let mut tls_socket = self.tls_context.wrap_socket(socket);
       let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);

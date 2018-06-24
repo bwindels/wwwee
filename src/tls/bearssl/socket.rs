@@ -48,6 +48,7 @@ impl<'a> SocketWrapper<'a> {
   /// tries to send tls records over the socket
   //returns IoReport because could interact with real socket that returns would_block
   pub fn write_records(&mut self) -> Result<IoReport> {
+    self.debug_state("start write_records");
     let engine = &mut self.engine;
     let socket : &mut Write = &mut self.socket;
     engine.sendrec_buf()
@@ -67,16 +68,28 @@ impl<'a> SocketWrapper<'a> {
   
   //returns IoReport because could interact with real socket that returns would_block
   pub fn read_records(&mut self) -> Result<IoReport> {
+    self.debug_state("start read_records");
     let socket : &mut Read = &mut self.socket;
     let engine = &mut self.engine;
     // feed records from socket into tls engine
     engine.recvrec_buf()
-      .map(|buffer| receive_buffer(socket, buffer))
+      .map(|buffer| {
+        print!("  got read buffer of size {} ... ", buffer.len());
+        receive_buffer(socket, buffer)
+      })
       .map(|read_result| {
         if let Ok(report) = read_result {
+          print!("read {} from socket ... ", report.byte_count());
           if !report.is_empty() {
             engine.recvrec_ack(report.byte_count())
-              .map_err(|_| Error::new(ErrorKind::Other, "engine error after recvrec ack"))?;
+              .map_err(|err| {
+                println!("recvrec ack error: {:?}", err);
+                Error::new(ErrorKind::Other, "engine error after recvrec ack")
+              })?;
+            println!("ack'ed!");
+          }
+          else {
+            println!("no socket bytes :(");
           }
         }
         read_result
@@ -118,6 +131,14 @@ impl<'a> SocketWrapper<'a> {
       Ok(len)
     })
     .unwrap_or(Ok(0))
+  }
+
+  pub fn debug_state(&self, label: &str) {
+    print!("{}, TLS engine state flags: ", label);
+    for f in self.engine.state() {
+      print!("{:?}, ", f);
+    }
+    println!("");
   }
 }
 
