@@ -55,7 +55,7 @@ impl<'a, T, H: io::Handler<T>> io::Handler<T> for Handler<'a, H> {
     if ctx.socket().is_source_of(event) {
       let result = self.handle_socket_event(event, ctx);
       //result.map_err()
-      result.unwrap()
+      result.expect("socket handler should not error")
     }
     else {
       let (socket, child_ctx_factory) = ctx.as_socket_and_factory();

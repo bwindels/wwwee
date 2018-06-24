@@ -52,16 +52,18 @@ impl<'a> DecoderContext<'a> {
     self.last_error().and_then(|_| {
       match self.ctx.key_type as u32 {
         BR_KEYTYPE_RSA => {
-          let rsa_key_ref = unsafe{
-            std::mem::transmute(&self.ctx.key.rsa)
+          let rsa_key = RsaKey {
+            skey: unsafe { self.ctx.key.rsa }, //access to union field
+            phantom_data: PhantomData
           };
-          Ok(Key::Rsa(rsa_key_ref))
+          Ok(Key::Rsa(rsa_key))
         },
         BR_KEYTYPE_EC => {
-          let ec_key_ref = unsafe {
-            std::mem::transmute(&self.ctx.key.ec)
+          let ec_key = EcKey {
+            skey: unsafe { self.ctx.key.ec }, //access to union field
+            phantom_data: PhantomData
           };
-          Ok(Key::Ec(ec_key_ref))
+          Ok(Key::Ec(ec_key))
         },
         _ => Err(x509::Error::WrongKeyType)
       }
@@ -83,13 +85,13 @@ impl<'a> DecoderContext<'a> {
 }
 
 pub enum Key<'a> {
-  Rsa(&'a RsaKey<'a>),
-  Ec(&'a EcKey<'a>)
+  Rsa(RsaKey<'a>),
+  Ec(EcKey<'a>)
 }
 
 pub struct RsaKey<'a> {
   skey: br_rsa_private_key,
-  lt: PhantomData<&'a u8>
+  phantom_data: PhantomData<&'a u8>
 }
 
 impl<'a> RsaKey<'a> {
@@ -100,7 +102,7 @@ impl<'a> RsaKey<'a> {
 
 pub struct EcKey<'a> {
   skey: br_ec_private_key,
-  lt: PhantomData<&'a u8>
+  phantom_data: PhantomData<&'a u8>
 }
 
 impl<'a> EcKey<'a> {
