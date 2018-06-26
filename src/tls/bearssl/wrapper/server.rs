@@ -4,19 +4,19 @@ use std::marker::PhantomData;
 use std;
 
 pub struct Context<'a> {
-  ctx: br_ssl_server_context,
+  ctx: Box<br_ssl_server_context>,
   lt: PhantomData<&'a u8>
 }
 
 impl<'a> Context<'a> {
   pub fn init_full_rsa(cert_chain: &'a [x509::Certificate<'a>], skey: &'a secret::RsaKey<'a>) -> Result<Context<'a>> {
-    let mut ctx : br_ssl_server_context = unsafe {
+    let mut ctx : Box<br_ssl_server_context> = Box::new(unsafe {
       std::mem::uninitialized()
-    };
+    });
     let first_cert = cert_chain.get(0).ok_or(Error::BadLength)?;
     unsafe {
       br_ssl_server_init_full_rsa(
-        &mut ctx,
+        &mut *ctx,
         first_cert.as_ptr(),
         cert_chain.len(),
         skey.as_ptr());
@@ -43,6 +43,6 @@ impl<'a> Context<'a> {
   }
 
   pub unsafe fn as_mut_ptr(&mut self) -> *mut br_ssl_server_context {
-    &mut self.ctx as *mut br_ssl_server_context
+    &mut *self.ctx as *mut br_ssl_server_context
   }
 }
