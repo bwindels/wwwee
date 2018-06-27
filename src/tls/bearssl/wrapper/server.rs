@@ -9,7 +9,7 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-  pub fn init_full_rsa(cert_chain: &'a [x509::Certificate<'a>], skey: &'a secret::RsaKey<'a>) -> Result<Context<'a>> {
+  pub fn init_full_rsa(cert_chain: &'a [x509::Certificate<'a>], skey: &'a secret::RsaKey) -> Result<Context<'a>> {
     let mut ctx : Box<br_ssl_server_context> = Box::new(unsafe {
       std::mem::uninitialized()
     });

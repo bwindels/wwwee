@@ -23,7 +23,7 @@ pub struct Context<'a> {
 impl<'a> Context<'a> {
   pub fn from_certificate(
     certificate_chain: &'a [x509::Certificate<'a>],
-    key: &'a secret::Key<'a>)
+    key: &'a secret::Key)
   -> Result<Context<'a>>
   {
     let mut server_context = match key {
