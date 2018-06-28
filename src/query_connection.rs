@@ -21,7 +21,7 @@ impl<Q, R> QueryConnection<Q, R> {
 impl<Q: Handler<Option<R>>, R: Handler<()>> Handler<()> for QueryConnection<Q, R> {
   
   fn handle_event(&mut self, event: &Event, ctx: &mut Context) -> Option<()> {
-    let (response_handler, result) = match self.stage {
+    let (response_handler, mut result) = match self.stage {
       Stage::Request(ref mut handler) => {
         match handler.handle_event(event, ctx) {
           None => {
@@ -35,11 +35,20 @@ impl<Q: Handler<Option<R>>, R: Handler<()>> Handler<()> for QueryConnection<Q, R
           },
         }
       },
-      Stage::Response(ref mut handler) => (None, handler.handle_event(event, ctx))
+      Stage::Response(ref mut handler) => {
+        println!("responding from QueryConnection!");
+        (None, handler.handle_event(event, ctx))
+      }
     };
     if let Some(response_handler) = response_handler {
       self.stage = Stage::Response(response_handler);
+      // if the socket is writable, try responding straight away,
+      // we might not get another event for this
+      if event.kind().is_writable() {
+        result = self.handle_event(event, ctx);
+      }
     }
+    println!("QueryConnection::handle_event is_some? {:?}", result.is_some());
     result
   }
 }
