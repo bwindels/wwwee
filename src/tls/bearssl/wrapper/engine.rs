@@ -94,6 +94,12 @@ impl Context {
     }
   }
 
+  pub fn is_closed(&self) -> bool {
+    unsafe {
+      br_ssl_engine_current_state(self as *const Context) == BR_SSL_CLOSED
+    }
+  }
+
   pub fn set_buffer<'a,'b:'a>(&'a mut self, buffer: &'b mut [u8], bidi: bool) {
     let bidi = if bidi {1} else {0};
     println!("setting ssl buffer bidi={}, len={}, ptr={:x}", bidi, buffer.len(), buffer.as_ptr() as usize);

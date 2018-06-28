@@ -1,4 +1,5 @@
 use super::ffi::*;
+use std;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Error {
@@ -33,4 +34,11 @@ pub enum Error {
   Io = BR_ERR_IO as isize,
   RecvFatalAlert = BR_ERR_RECV_FATAL_ALERT as isize,
   SendFatalAlert = BR_ERR_SEND_FATAL_ALERT as isize,
+}
+
+impl Error {
+  pub fn as_io_error(self, msg: &'static str) -> std::io::Error {
+    println!("as_io_error from {:?}", self);
+    std::io::Error::new(std::io::ErrorKind::Other, msg)
+  }
 }

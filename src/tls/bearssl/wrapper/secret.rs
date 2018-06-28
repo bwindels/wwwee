@@ -86,8 +86,10 @@ impl RsaKey {
 
       key_parts.iter_mut().fold(0, |offset, part| {
         let len = part.1;
+        //append data to vec
         let slice : &[u8] = unsafe { std::slice::from_raw_parts(*part.0, len) };
         key_data.extend_from_slice(slice);
+        //update pointer in skey to new location in the vec
         *part.0 = unsafe { key_data.as_mut_ptr().offset(offset as isize) };
         offset + len
       });

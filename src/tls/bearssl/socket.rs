@@ -38,11 +38,11 @@ impl<'a> SocketWrapper<'a> {
   }
 
   pub fn is_writable(&self) -> bool {
-    self.engine.state().includes(engine::StateFlag::SendApp)
+    self.engine.sendapp_buf().is_some()
   }
 
   pub fn is_readable(&self) -> bool {
-    self.engine.state().includes(engine::StateFlag::RecvApp)
+    self.engine.recvapp_buf().is_some()
   }
 
   /// tries to send tls records over the socket
@@ -57,7 +57,7 @@ impl<'a> SocketWrapper<'a> {
         if let Ok(report) = write_result {
           if !report.is_empty() {
             engine.sendrec_ack(report.byte_count()) //byte_count can be 0 here, danger!
-              .map_err(|_| Error::new(ErrorKind::Other, "engine error after sendrec ack"))?;
+              .map_err(|err| err.as_io_error("engine error after sendrec ack"))?;
           }
         }
         write_result
@@ -84,7 +84,7 @@ impl<'a> SocketWrapper<'a> {
             engine.recvrec_ack(report.byte_count())
               .map_err(|err| {
                 println!("recvrec ack error: {:?}", err);
-                Error::new(ErrorKind::Other, "engine error after recvrec ack")
+                err.as_io_error("engine error after recvrec ack")
               })?;
             println!("ack'ed!");
           }
@@ -109,7 +109,7 @@ impl<'a> SocketWrapper<'a> {
     })
     .map(|len| {
       engine.recvapp_ack(len)
-        .map_err(|_| Error::new(ErrorKind::Other, "engine error after recvapp ack"))?;
+        .map_err(|err| err.as_io_error("engine error after recvapp ack"))?;
       Ok(len)
     })
     .unwrap_or(Ok(0))
@@ -127,10 +127,36 @@ impl<'a> SocketWrapper<'a> {
     })
     .map(|len| {
       engine.sendapp_ack(len)
-        .map_err(|_| Error::new(ErrorKind::Other, "engine error after sendapp ack"))?;
+        .map_err(|err| err.as_io_error("engine error after sendapp ack"))?;
       Ok(len)
     })
     .unwrap_or(Ok(0))
+  }
+
+  pub fn close(&mut self) -> Result<()> {
+    self.engine.close();
+
+    self.debug_state("inside close loop, about to discard app data");
+    //discard incoming app data
+    self.discard_incoming_data()?;
+    self.debug_state("inside close loop, about to write remaining records");
+    //write outstanding records
+    while self.write_records()?.should_retry() {};
+    
+    self.engine.last_error()
+      .map_err(|err| err.as_io_error("engine error while closing tls socket"))
+  }
+
+  pub fn discard_incoming_data(&mut self) -> Result<()> {
+    while let Some(len) = self.engine.recvapp_buf().map(|buf| buf.len()) {
+      self.engine.recvapp_ack(len)
+        .map_err(|err| err.as_io_error("engine error while discarding app data"))?;
+    }
+    Ok( () )
+  }
+
+  pub fn is_closed(&self) -> bool {
+    self.engine.is_closed()
   }
 
   pub fn debug_state(&self, label: &str) {
@@ -147,6 +173,7 @@ impl<'a> SocketWrapper<'a> {
 impl<'a> Read for SocketWrapper<'a> {
 
   fn read(&mut self, dst_buffer: &mut [u8]) -> Result<usize> {
+    self.debug_state("SocketWrapper::read begin");
     let buffer_len = dst_buffer.len();
     let mut should_retry = true;
     //try read remaining decrypted bytes from last call to read
@@ -158,6 +185,7 @@ impl<'a> Read for SocketWrapper<'a> {
       //the data would be lost
       app_bytes_read += self.read_plaintext(&mut dst_buffer[app_bytes_read ..])?;
     }
+    println!("SocketWrapper::read done with {:?} bytes read", app_bytes_read);
     Ok(app_bytes_read)
   }
 }
@@ -171,6 +199,7 @@ impl<'a> ReadSizeHint for SocketWrapper<'a> {
 
 impl<'a> Write for SocketWrapper<'a> {
   fn write(&mut self, src_buffer: &[u8]) -> Result<usize> {
+    self.debug_state("SocketWrapper::write begin");
     let buffer_len = src_buffer.len();
     let mut should_retry = true;
     let mut app_bytes_written = 0;
@@ -185,6 +214,7 @@ impl<'a> Write for SocketWrapper<'a> {
       //also stop on would_block
       should_retry = self.write_records()?.should_retry();
     }
+    println!("SocketWrapper::write done with {:?} bytes written", app_bytes_written);
     Ok(app_bytes_written)
   }
 
