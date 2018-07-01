@@ -12,10 +12,15 @@ use super::{
 pub struct ContextFactory<'a> {
   poll: &'a mio::Poll,
   conn_id: ConnectionId,
-  token_source: &'a mut AsyncTokenSource
+  token_source: &'a mut AsyncTokenSource,
+  uses_tls: bool
 }
 
 impl<'a> ContextFactory<'a> {
+  pub fn set_tls(&mut self, uses_tls: bool) {
+    self.uses_tls = uses_tls;
+  }
+
   pub fn into_context<'s>(self, socket: &'s mut Socket)
     -> Context<'s>
     where 'a: 's
@@ -24,6 +29,7 @@ impl<'a> ContextFactory<'a> {
       poll: self.poll,
       conn_id: self.conn_id,
       token_source: self.token_source,
+      uses_tls: self.uses_tls,
       socket
     }
   }
@@ -35,13 +41,14 @@ pub struct Context<'a> {
   poll: &'a mio::Poll,
   conn_id: ConnectionId,
   token_source: &'a mut AsyncTokenSource,
-  socket: &'a mut Socket
+  socket: &'a mut Socket,
+  uses_tls: bool
 }
 
 impl<'a> Context<'a>
 {
   pub fn new(poll: &'a mio::Poll, conn_id: ConnectionId, token_source: &'a mut AsyncTokenSource, socket: &'a mut Socket) -> Context<'a> {
-    Context {poll, conn_id, token_source, socket}
+    Context {poll, conn_id, token_source, socket, uses_tls: false}
   }
 
   pub fn register<R: AsyncSource>(&mut self, registerable: R) -> std::io::Result<Registered<R>> {
@@ -62,9 +69,14 @@ impl<'a> Context<'a>
     let factory = ContextFactory {
       poll: &self.poll,
       conn_id: self.conn_id,
-      token_source: &mut self.token_source
+      token_source: &mut self.token_source,
+      uses_tls: self.uses_tls
     };
     (self.socket, factory)
+  }
+
+  pub fn uses_tls(&self) -> bool {
+    self.uses_tls
   }
 
   fn alloc_token(&mut self) -> Token {

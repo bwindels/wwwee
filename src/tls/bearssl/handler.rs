@@ -18,7 +18,8 @@ impl<'a, H> Handler<'a, H> {
     -> std::io::Result<Option<()>>
     where H: io::Handler<()>
   {
-    let (socket, child_ctx_factory) = ctx.as_socket_and_factory(); 
+    let (socket, mut child_ctx_factory) = ctx.as_socket_and_factory(); 
+    child_ctx_factory.set_tls(true);
     let mut tls_socket = self.tls_context.wrap_socket(socket);
     let event_kind = event.kind();
 
@@ -82,7 +83,8 @@ impl<'a, H: io::Handler<()>> io::Handler<()> for Handler<'a, H> {
     // (e.g. file data available from reader) anymore
     // if this is the case.
     else if !self.is_closing {
-      let (socket, child_ctx_factory) = ctx.as_socket_and_factory();
+      let (socket, mut child_ctx_factory) = ctx.as_socket_and_factory();
+      child_ctx_factory.set_tls(true);
       let mut tls_socket = self.tls_context.wrap_socket(socket);
       let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);
       let result = self.child_handler.handle_event(event, &mut child_ctx);
