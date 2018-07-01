@@ -1,25 +1,8 @@
 # Roadmap to TLS support
 
-
 ## Hardcoded, self-signed certificate
 
-First thing to support is a hardcoded, self-signed certificate. Just old-school RSA, no elliptic curve. 
-
-
-## Shortlist:
-
-- implement Buffer::read_from_with_hint
-- DONE: research how memory is borrowed inside bearssl to annotate things with more precise lifetimes. structs to research:
-  - br_skey_decoder_context
-      we can see in samples/key-rsa.h that an rsa private key exist out of several largeish blobs (the pointers who's origin we're uncertain of). I want to find out if the memory backing these pointers is backed by the actual private key DER buffer, or something else? if so where does that memory come from? Fixed sized allocation? The actual decoder code (skey_decoder.c) is generated from code written in a macro language (T0) so a bit hard to read.
-
-      seems to be backed by DER buffer!
-  - br_rsa_private_key
-  - br_ec_private_key
-
-## Notes
-
-I was thinking of setting the socket buffer size to the TLS record size, but that might not be optimal. If we can't read all the socket data into the recvrec buffer in one go, we'll just need to write several times because the data will be decrypted and on the application side be appended to a request-scoped buffer (pumping it piece-by-piece through the tls pipeline). For the case when that doesn't happen we might have to change the socket trigger to level triggered so we get events when there is still data in the socket?... this would be a weird scenario because the app should always straight away respond to events. If it doesn't read the decrypted data straight away that would be a bug almost.
+DONE: First thing to support is a hardcoded, self-signed certificate. Just old-school RSA, no elliptic curve.
 
 ## Generate a certificate on server start-up
 
@@ -43,3 +26,13 @@ we'll need the following components before we can start on this:
 
 by the time we start on this, ACME v2 should have been rolled out for production use (Q1 2018).
 Lets encrypt will only support EC signatures in Q3 2018.
+
+## Notes
+
+I was thinking of setting the socket buffer size to the TLS record size, but that might not be optimal. If we can't read all the socket data into the recvrec buffer in one go, we'll just need to write several times because the data will be decrypted and on the application side be appended to a request-scoped buffer (pumping it piece-by-piece through the tls pipeline). For the case when that doesn't happen we might have to change the socket trigger to level triggered so we get events when there is still data in the socket?... this would be a weird scenario because the app should always straight away respond to events. If it doesn't read the decrypted data straight away that would be a bug almost.
+
+## Shortcuts taken
+
+- br_ssl_server_context is allocated on the heap (Box) because it's self-referential. Could put it in the page buffer?
+- RsaKey/EcKey write the key_data to a Vec<u8>. This is only allocated once per server though.
+ - no tests currently. once we've got a client we could write an in-memory Read/Write impl to test encryption/decryption maybe?
