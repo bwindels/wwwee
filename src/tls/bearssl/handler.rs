@@ -53,7 +53,7 @@ impl<'a, H> Handler<'a, H> {
         Ok(result)
       }
       else {
-        Ok(None) //need more events
+        Ok(None) //wait for more events
       }
     }
   }
