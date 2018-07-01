@@ -1,6 +1,6 @@
 use io::{Socket, ReadSizeHint, EventSource, AsyncToken};
 use io::handlers::{send_buffer, receive_buffer, IoReport};
-use std::io::{Result, Error, ErrorKind, Read, Write};
+use std::io::{Result, Read, Write};
 use super::wrapper::engine;
 use std::cmp;
 

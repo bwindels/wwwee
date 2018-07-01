@@ -2,7 +2,6 @@ use std;
 use std::io::Write;
 use io;
 use super::context::Context;
-use super::socket::SocketWrapper;
 
 pub struct Handler<'a, H> {
   tls_context: Context<'a>,
@@ -36,9 +35,12 @@ impl<'a, H> Handler<'a, H> {
     if self.is_closing {
       tls_socket.discard_incoming_data()?;
       if tls_socket.is_closed() {
+        //tls termination finished,
+        //terminate the connection
         return Ok( Some( () ) );
       }
       else {
+        //wait for more events
         return Ok( None );
       }
     }
@@ -51,20 +53,8 @@ impl<'a, H> Handler<'a, H> {
       if child_event_kind.has_any() {
         tls_socket.debug_state("forwarding socket event to child handler");
         let child_event = event.with_kind(child_event_kind);
-        let result = {
-          let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);
-          self.child_handler.handle_event(&child_event, &mut child_ctx)
-        };
-        // result is known, closing socket
-        if result.is_some() {
-          println!("closing tls socket");
-          // if this can't finish now and needs to wait until next event
-          // we need to store result and return that once we managed
-          // to write out all the remaining records
-          self.is_closing = true;
-          tls_socket.flush()?;
-          tls_socket.close()?;
-        }
+        let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);
+        let result = self.child_handler.handle_event(&child_event, &mut child_ctx);
         Ok(result)
       }
       else {
@@ -73,44 +63,52 @@ impl<'a, H> Handler<'a, H> {
       }
     }
   }
-}
 
-/*
-here we need to
-- handle gracefully when the socket isn't writable (wait for next event to send)
-- check upon receiving records whether there is something to send out again (handshake!)
-- check if there is plaintext available, if so, wrap the socket and forward the event to child_handler 
-*/
+  fn start_tls_session_termination(&mut self, ctx: &mut io::Context) -> std::io::Result<()> {
+    println!("closing tls socket");
+    self.is_closing = true;
+    let (socket, _) = ctx.as_socket_and_factory();
+    let mut tls_socket = self.tls_context.wrap_socket(socket);
+    tls_socket.flush()?;
+    tls_socket.close()?;
+    Ok( () )
+  }
+}
 
 impl<'a, H: io::Handler<()>> io::Handler<()> for Handler<'a, H> {
   fn handle_event(&mut self, event: &io::Event, ctx: &mut io::Context) -> Option<()> {
 
-    if ctx.socket().is_source_of(event) {
-      match self.handle_socket_event(event, ctx) {
-        Ok(result) => result,
-        Err(err) => {
-          println!("error while handling tls socket event: {:?}", err);
-          Some( () )  //close the socket on error
-        }
-      }
+    //if an event on the socket, handle it seperatly
+    //because tls handshake needs to be handled here
+    let mut result = if ctx.socket().is_source_of(event) {
+      self.handle_socket_event(event, ctx)
     }
-    else {
-      //TODO handle closing tls socket here as well
+    // as app data shouldn't be sent/received anymore
+    // after starting to close the tls session,
+    // don't deliver non-socket events
+    // (e.g. file data available from reader) anymore
+    // if this is the case.
+    else if !self.is_closing {
       let (socket, child_ctx_factory) = ctx.as_socket_and_factory();
       let mut tls_socket = self.tls_context.wrap_socket(socket);
-      let result = {
-        let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);
-        self.child_handler.handle_event(event, &mut child_ctx)
-      };
-      if result.is_some() {
-        self.is_closing = true;
-        tls_socket.flush();
-        tls_socket.close();
-        return None;
-      }
-      else {
-        return None;
-      }
+      let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);
+      let result = self.child_handler.handle_event(event, &mut child_ctx);
+      Ok( result )
+    }
+    // keep connection open and wait for more events
+    else {
+      Ok ( None )
+    };
+    // if the child handler finished, terminate tls session
+    if let Ok(Some(_)) = result {
+      result = self
+        .start_tls_session_termination(ctx)
+        .map(|_| None); //None: wait for more events to finish tls termination
+    }
+
+    match result {
+      Ok(result) => result,
+      Err(_) => Some( () )  //on error, close socket
     }
   }
 }
