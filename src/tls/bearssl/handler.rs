@@ -99,11 +99,15 @@ impl<'a, H: io::Handler<()>> io::Handler<()> for Handler<'a, H> {
     else {
       Ok ( None )
     };
-    // if the child handler finished, terminate tls session
-    if let Ok(Some(_)) = result {
-      result = self
-        .start_tls_session_termination(ctx)
-        .map(|_| None); //None: wait for more events to finish tls termination
+    // if we haven't terminated yet,
+    // and the child handler finished,
+    // terminate tls session
+    if !self.is_closing {
+      if let Ok(Some(_)) = result {
+        result = self
+          .start_tls_session_termination(ctx)
+          .map(|_| None); //None: wait for more events to finish tls termination
+      }
     }
 
     match result {
