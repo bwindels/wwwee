@@ -18,7 +18,6 @@ impl<'a, H> Handler<'a, H> {
     -> std::io::Result<Option<()>>
     where H: io::Handler<()>
   {
-    println!("handling socket event in TLS handler");
     let (socket, child_ctx_factory) = ctx.as_socket_and_factory(); 
     let mut tls_socket = self.tls_context.wrap_socket(socket);
     let event_kind = event.kind();
@@ -29,8 +28,6 @@ impl<'a, H> Handler<'a, H> {
     if event_kind.is_writable() {
       while tls_socket.write_records()?.should_retry() {};
     }
-
-    println!("done with pre-child I/O");
 
     if self.is_closing {
       tls_socket.discard_incoming_data()?;
@@ -48,24 +45,20 @@ impl<'a, H> Handler<'a, H> {
       let child_event_kind = event_kind
         .with_readable(tls_socket.is_readable())
         .with_writable(tls_socket.is_writable());
-      println!("after handshake attempt, tls socket is readable={}, writable={}, child_event_kind.has_any()={}, child_event_kind.0={}", tls_socket.is_readable(), tls_socket.is_writable(), child_event_kind.has_any(), child_event_kind.0);
 
       if child_event_kind.has_any() {
-        tls_socket.debug_state("forwarding socket event to child handler");
         let child_event = event.with_kind(child_event_kind);
         let mut child_ctx = child_ctx_factory.into_context(&mut tls_socket);
         let result = self.child_handler.handle_event(&child_event, &mut child_ctx);
         Ok(result)
       }
       else {
-        println!("waiting for more events before forwarding to child handler");
         Ok(None) //need more events
       }
     }
   }
 
   fn start_tls_session_termination(&mut self, ctx: &mut io::Context) -> std::io::Result<()> {
-    println!("closing tls socket");
     self.is_closing = true;
     let (socket, _) = ctx.as_socket_and_factory();
     let mut tls_socket = self.tls_context.wrap_socket(socket);
@@ -112,7 +105,10 @@ impl<'a, H: io::Handler<()>> io::Handler<()> for Handler<'a, H> {
 
     match result {
       Ok(result) => result,
-      Err(_) => Some( () )  //on error, close socket
+      Err(err) => {
+        println!("closing tls socket due to io error: {:?}", err);
+        Some( () )  //on error, close socket
+      }
     }
   }
 }

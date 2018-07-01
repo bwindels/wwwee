@@ -102,7 +102,6 @@ impl Context {
 
   pub fn set_buffer<'a,'b:'a>(&'a mut self, buffer: &'b mut [u8], bidi: bool) {
     let bidi = if bidi {1} else {0};
-    println!("setting ssl buffer bidi={}, len={}, ptr={:x}", bidi, buffer.len(), buffer.as_ptr() as usize);
     unsafe {
       br_ssl_engine_set_buffer(
         self as *mut Context,

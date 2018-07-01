@@ -35,10 +35,8 @@ impl<Q: Handler<Option<R>>, R: Handler<()>> Handler<()> for QueryConnection<Q, R
           },
         }
       },
-      Stage::Response(ref mut handler) => {
-        println!("responding from QueryConnection!");
+      Stage::Response(ref mut handler) =>
         (None, handler.handle_event(event, ctx))
-      }
     };
     if let Some(response_handler) = response_handler {
       self.stage = Stage::Response(response_handler);
@@ -48,7 +46,6 @@ impl<Q: Handler<Option<R>>, R: Handler<()>> Handler<()> for QueryConnection<Q, R
         result = self.handle_event(event, ctx);
       }
     }
-    println!("QueryConnection::handle_event is_some? {:?}", result.is_some());
     result
   }
 }

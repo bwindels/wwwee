@@ -48,7 +48,6 @@ impl<'a> SocketWrapper<'a> {
   /// tries to send tls records over the socket
   //returns IoReport because could interact with real socket that returns would_block
   pub fn write_records(&mut self) -> Result<IoReport> {
-    self.debug_state("start write_records");
     let engine = &mut self.engine;
     let socket : &mut Write = &mut self.socket;
     engine.sendrec_buf()
@@ -68,28 +67,16 @@ impl<'a> SocketWrapper<'a> {
   
   //returns IoReport because could interact with real socket that returns would_block
   pub fn read_records(&mut self) -> Result<IoReport> {
-    self.debug_state("start read_records");
     let socket : &mut Read = &mut self.socket;
     let engine = &mut self.engine;
     // feed records from socket into tls engine
     engine.recvrec_buf()
-      .map(|buffer| {
-        print!("  got read buffer of size {} ... ", buffer.len());
-        receive_buffer(socket, buffer)
-      })
+      .map(|buffer| receive_buffer(socket, buffer))
       .map(|read_result| {
         if let Ok(report) = read_result {
-          print!("read {} from socket ... ", report.byte_count());
           if !report.is_empty() {
             engine.recvrec_ack(report.byte_count())
-              .map_err(|err| {
-                println!("recvrec ack error: {:?}", err);
-                err.as_io_error("engine error after recvrec ack")
-              })?;
-            println!("ack'ed!");
-          }
-          else {
-            println!("no socket bytes :(");
+              .map_err(|err| err.as_io_error("engine error after recvrec ack"))?;
           }
         }
         read_result
@@ -135,11 +122,7 @@ impl<'a> SocketWrapper<'a> {
 
   pub fn close(&mut self) -> Result<()> {
     self.engine.close();
-
-    self.debug_state("inside close loop, about to discard app data");
-    //discard incoming app data
     self.discard_incoming_data()?;
-    self.debug_state("inside close loop, about to write remaining records");
     //write outstanding records
     while self.write_records()?.should_retry() {};
     
@@ -158,14 +141,6 @@ impl<'a> SocketWrapper<'a> {
   pub fn is_closed(&self) -> bool {
     self.engine.is_closed()
   }
-
-  pub fn debug_state(&self, label: &str) {
-    print!("{}, TLS engine state flags: ", label);
-    for f in self.engine.state() {
-      print!("{:?}, ", f);
-    }
-    println!("");
-  }
 }
 
 
@@ -173,7 +148,6 @@ impl<'a> SocketWrapper<'a> {
 impl<'a> Read for SocketWrapper<'a> {
 
   fn read(&mut self, dst_buffer: &mut [u8]) -> Result<usize> {
-    self.debug_state("SocketWrapper::read begin");
     let buffer_len = dst_buffer.len();
     let mut should_retry = true;
     //try read remaining decrypted bytes from last call to read
@@ -185,7 +159,6 @@ impl<'a> Read for SocketWrapper<'a> {
       //the data would be lost
       app_bytes_read += self.read_plaintext(&mut dst_buffer[app_bytes_read ..])?;
     }
-    println!("SocketWrapper::read done with {:?} bytes read", app_bytes_read);
     Ok(app_bytes_read)
   }
 }
@@ -199,7 +172,6 @@ impl<'a> ReadSizeHint for SocketWrapper<'a> {
 
 impl<'a> Write for SocketWrapper<'a> {
   fn write(&mut self, src_buffer: &[u8]) -> Result<usize> {
-    self.debug_state("SocketWrapper::write begin");
     let buffer_len = src_buffer.len();
     let mut should_retry = true;
     let mut app_bytes_written = 0;
@@ -214,7 +186,6 @@ impl<'a> Write for SocketWrapper<'a> {
       //also stop on would_block
       should_retry = self.write_records()?.should_retry();
     }
-    println!("SocketWrapper::write done with {:?} bytes written", app_bytes_written);
     Ok(app_bytes_written)
   }
 
