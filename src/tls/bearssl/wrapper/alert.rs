@@ -1,0 +1,27 @@
+use super::ffi::*;
+
+pub enum Alert {
+  CloseNotify = BR_ALERT_CLOSE_NOTIFY as isize,
+  UnexpectedMessage = BR_ALERT_UNEXPECTED_MESSAGE as isize,
+  BadRecordMac = BR_ALERT_BAD_RECORD_MAC as isize,
+  RecordOverflow = BR_ALERT_RECORD_OVERFLOW as isize,
+  DecompressionFailure = BR_ALERT_DECOMPRESSION_FAILURE as isize,
+  HandshakeFailure = BR_ALERT_HANDSHAKE_FAILURE as isize,
+  BadCertificate = BR_ALERT_BAD_CERTIFICATE as isize,
+  UnsupportedCertificate = BR_ALERT_UNSUPPORTED_CERTIFICATE as isize,
+  CertificateRevoked = BR_ALERT_CERTIFICATE_REVOKED as isize,
+  CertificateExpired = BR_ALERT_CERTIFICATE_EXPIRED as isize,
+  CertificateUnknown = BR_ALERT_CERTIFICATE_UNKNOWN as isize,
+  IllegalParameter = BR_ALERT_ILLEGAL_PARAMETER as isize,
+  UnknownCa = BR_ALERT_UNKNOWN_CA as isize,
+  AccessDenied = BR_ALERT_ACCESS_DENIED as isize,
+  DecodeError = BR_ALERT_DECODE_ERROR as isize,
+  DecryptError = BR_ALERT_DECRYPT_ERROR as isize,
+  ProtocolVersion = BR_ALERT_PROTOCOL_VERSION as isize,
+  InsufficientSecurity = BR_ALERT_INSUFFICIENT_SECURITY as isize,
+  InternalError = BR_ALERT_INTERNAL_ERROR as isize,
+  UserCanceled = BR_ALERT_USER_CANCELED as isize,
+  NoRenegotiation = BR_ALERT_NO_RENEGOTIATION as isize,
+  UnsupportedExtension = BR_ALERT_UNSUPPORTED_EXTENSION as isize,
+  NoApplicationProtocol = BR_ALERT_NO_APPLICATION_PROTOCOL as isize,
+}

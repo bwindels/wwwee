@@ -1,7 +1,6 @@
 use std::io::Write;
 use std::io;
 use buffer::Buffer;
-use io::{Context, AsyncSource, Registered};
 use io::sources::file;
 use http::status::Status;
 use super::response_writer::ResponseWriter;
@@ -36,8 +35,8 @@ impl Response {
     Response {meta, buffer: headers, body: ResponseBody::File(file)}
   }
 
-  pub fn into_handler<W: Write + AsyncSource>(self, writer: Registered<W>) -> ResponseWriter<W> {
-    ResponseWriter::new(writer, self.buffer, self.body)
+  pub fn into_handler(self) -> ResponseWriter {
+    ResponseWriter::new(self.buffer, self.body)
   }
 
   pub fn status_code(&self) -> u16 {
@@ -45,13 +44,12 @@ impl Response {
   }
 }
 
-pub struct Responder<'a> {
-  ctx: &'a Context<'a>
+pub struct Responder {
 }
 
-impl<'a> Responder<'a> {
-  pub fn new(ctx: &'a Context) -> Responder<'a> {
-    Responder {ctx}
+impl Responder {
+  pub fn new() -> Responder {
+    Responder {}
   }
 
   pub fn respond(&self, status: Status) -> io::Result<HeaderWriter> {

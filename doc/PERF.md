@@ -1,0 +1,2 @@
+don't obsess on performance.
+once we got an app up and running, it would be interesting to benchmark throughput, cpu load and memory usage when using PageBuffer or a malloc/realloc based growable buffer.

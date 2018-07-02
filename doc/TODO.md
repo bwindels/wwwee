@@ -37,7 +37,7 @@
  - [ ] parse/add more headers to common headers
   - [ ] implement base64 parser (also support base64url) for basic auth
  - security
-   - [ ] Basic TLS using https://bearssl.org/
+   - [x] Basic TLS using https://bearssl.org/
      
      Start out with fixed record size, not reusing connections, hardcoded cert ...
       - [ ] make TLS performant, see https://istlsfastyet.com/
@@ -46,6 +46,7 @@
         - [ ] working https client for this to call lets encrypt api
           - [ ] need http client support
           - [ ] need working ca list to work with bearssl
+ - [ ] use one PageBuffer for both TLS buffer, TLS server context, request buffer, response buffer, ... all needed allocations, by splitting it up somehow in multiple static and one growable buffer, much like a runtime stack.
  - [ ] implement json parser/writer
  - [ ] implement cross-request state
  - [ ] implement cross-application state based on configuration dictionary to support things like persistent sqlite handle

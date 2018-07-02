@@ -1,6 +1,6 @@
 use mio;
 use std;
-use io::{AsyncSource, EventKind, Token};
+use io::{AsyncSource, Token, ReadSizeHint};
 
 impl AsyncSource for mio::net::TcpStream {
   fn register(&mut self, selector: &mio::Poll, token: Token) -> std::io::Result<()> {
@@ -11,14 +11,9 @@ impl AsyncSource for mio::net::TcpStream {
       mio::PollOpt::edge()
     )
   }
-  fn deregister(&mut self, _selector: &mio::Poll) -> std::io::Result<()> {
-    Ok( () )
-  }
-
-  fn is_registered_event_kind(&self, event_kind: EventKind) -> bool {
-    match event_kind {
-      EventKind::Readable |
-      EventKind::Writable => true
-    }
+  fn deregister(&mut self, selector: &mio::Poll) -> std::io::Result<()> {
+    selector.deregister(self)
   }
 }
+
+impl ReadSizeHint for mio::net::TcpStream {}

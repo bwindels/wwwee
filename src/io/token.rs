@@ -1,6 +1,5 @@
 use mio;
 pub use self::AsyncToken;
-use std::cell::Cell;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConnectionId(pub u32);
@@ -88,18 +87,18 @@ impl Token {
 }
 
 pub struct AsyncTokenSource {
-  counter: Cell<AsyncToken>
+  counter: AsyncToken
 }
 
 impl AsyncTokenSource {
   
   pub fn starting_from(start_from: AsyncToken) -> AsyncTokenSource {
-    AsyncTokenSource { counter: Cell::new(start_from) }
+    AsyncTokenSource { counter: start_from }
   }
 
-  pub fn alloc_async_token(&self) -> AsyncToken {
-    self.counter.set(next_token(self.counter.get()));
-    self.counter.get()
+  pub fn alloc_async_token(&mut self) -> AsyncToken {
+    self.counter = next_token(self.counter);
+    self.counter
   }
 }
 
