@@ -32,10 +32,10 @@ See also [the more detailed TODO list](doc/TODO.md).
  - single threaded event loop for all I/O
  - buffered responses
  - async file responses
+ - TLS support using [BearSSL](https://bearssl.org/).
 
 ### In progress
 
- - [TLS support](https://github.com/bwindels/wwwee/commits/tls) using [BearSSL](https://bearssl.org/).
  - [Zero-allocation JSON parsing](https://github.com/bwindels/json-parser-noalloc-rs)
  - [In-place base64 decoder](https://gist.github.com/bwindels/777a1b5b13cd54bcd67dca3c925ca7bb)
 
