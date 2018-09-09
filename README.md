@@ -12,7 +12,7 @@ The goals are quite similar, and while these projects offer great value (also be
 
 ### Who's working on this?
 
-Just [me](https://github.com/bwindels) for now, but let me know if you want to contribute!
+Just [me](https://github.com/bwindels) for now, but let me know if you want to contribute! Have a look at the [good first issues](https://github.com/bwindels/wwwee/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) if you're wondering where to start.
 
 ### Is this running somewhere already?
 
