@@ -116,8 +116,7 @@ impl Context {
       Ok(())
     }
     else {
-      let err = unsafe { std::mem::transmute(self.err as i16) };
-      Err(err)
+      Err(super::Error::from_primitive(self.err as u32))
     }
   }
 }
