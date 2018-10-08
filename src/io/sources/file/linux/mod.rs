@@ -3,6 +3,7 @@ mod aio;
 mod reader;
 mod owned_fd;
 mod readrange;
+mod path;
 pub use self::reader::Reader;
 
 use libc;
