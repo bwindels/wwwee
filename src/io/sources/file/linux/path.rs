@@ -3,6 +3,14 @@ use libc;
 use std::io::{Result, Error, ErrorKind, Write};
 use std::os::unix::io::{RawFd, AsRawFd};
 
+// not related to linux/limits.h value,
+// just the largest relative path we expect
+const PATH_MAX : usize = 1024;
+
+pub trait Path {
+  fn open(&self, flags: libc::c_int) -> Result<OwnedFd>;
+}
+
 pub struct Directory {
     dir_fd: OwnedFd
 }
@@ -10,8 +18,18 @@ pub struct Directory {
 impl Directory {
   // dir_path needs to be terminated with NUL
   pub fn open(dir_path: &str) -> Result<Directory> {
+    let mut path_buffer : [u8; PATH_MAX] = unsafe {
+      std::mem::uninitialized()
+    };
+    {
+      let mut path_writer : &mut [u8] = &mut path_buffer;
+      path_writer.write(dir_path.as_bytes())?;
+      //append NUL byte
+      path_writer.write(&[0u8])?;
+    }
+
     let raw_fd = to_result( unsafe {
-      libc::open(dir_path.as_ptr() as *const i8, libc::O_DIRECTORY | libc::O_PATH)
+      libc::open(path_buffer.as_ptr() as *const i8, libc::O_DIRECTORY | libc::O_PATH)
     })?;
     Ok(Directory {
       dir_fd: OwnedFd::from_raw_fd(raw_fd)
@@ -102,15 +120,12 @@ impl<'d, 'p> RelativePath<'d, 'p> {
 }
 
 impl<'d, 'p> Path for RelativePath<'d, 'p> {
-  fn required_buffer_size(&self) -> usize {
-      1 +  //for NUL byte at the end
-      self.relative_path.len() + 
-      self.filename.map(|f| f.len()).unwrap_or(0)
-  }
-
-  fn open(&self, flags: libc::c_int, path_buffer: &mut [u8]) -> Result<OwnedFd> {
+  fn open(&self, flags: libc::c_int) -> Result<OwnedFd> {
+    let mut path_buffer : [u8; PATH_MAX] = unsafe {
+      std::mem::uninitialized()
+    };
     {
-      let mut path_writer : &mut [u8] = path_buffer;
+      let mut path_writer : &mut [u8] = &mut path_buffer;
       path_writer.write(self.relative_path.as_bytes())?;
       if let Some(filename) = self.filename {
         path_writer.write(filename.as_bytes())?;
@@ -127,12 +142,6 @@ impl<'d, 'p> Path for RelativePath<'d, 'p> {
     } )?;
     Ok(OwnedFd::from_raw_fd(raw_fd))
   }
-}
-
-pub trait Path {
-  // size needed to compose c string with relative_path + filename? + NUL
-  fn required_buffer_size(&self) -> usize;
-  fn open(&self, flags: libc::c_int, path_buffer: &mut [u8]) -> Result<OwnedFd>;
 }
 
 #[cfg(test)]
