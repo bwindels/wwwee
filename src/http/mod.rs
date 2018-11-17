@@ -1,5 +1,5 @@
 mod header_body_splitter;
-mod headers;
+pub mod headers;
 mod request;
 mod error;
 mod url_decode;
