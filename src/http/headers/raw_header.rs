@@ -5,11 +5,12 @@ use std::str;
 
 pub struct RawHeader<'a> {
   pub name: &'a str,
-  pub value: &'a [u8]
+  pub value: &'a mut [u8]
 }
 
 impl<'a> RawHeader<'a> {
   pub fn parse(line: &'a mut [u8]) -> RequestResult<RawHeader<'a>> {
+    // TODO: should this be try_split_two_mut?
     if let Some(idx) = line.position(b":") {
       let (name, value) = line.split_at_mut(idx);
       name.make_ascii_uppercase();
@@ -17,10 +18,10 @@ impl<'a> RawHeader<'a> {
         name_word[0..1].make_ascii_uppercase();
         name_word[1..].make_ascii_lowercase();
       }
-      let name = trim(name, is_whitespace);
+      let name = trim_mut(name, is_whitespace);
       let name = slice_to_str(name)?;
-      let value = &value[1..];  //cut ':' off
-      let value = trim(value, is_whitespace);
+      let value = &mut value[1..];  //cut ':' off
+      let value = trim_mut(value, is_whitespace);
       Ok(RawHeader{name, value})
     }
     else {
