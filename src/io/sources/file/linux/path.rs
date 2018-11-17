@@ -1,4 +1,4 @@
-use super::{to_result, owned_fd::{OwnedFd}};
+use super::{to_result, OwnedFd};
 use libc;
 use std::io::{Result, Error, ErrorKind, Write};
 use std::os::unix::io::{RawFd, AsRawFd};
