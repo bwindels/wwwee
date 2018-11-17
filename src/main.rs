@@ -15,6 +15,7 @@ extern crate libc;
 
 use query_connection::QueryConnection;
 use server::Server;
+use io::sources::file::Directory;
 use http::request_handler::Handler;
 
 pub const GIT_HASH : &'static str = env!("GIT_HASH");
@@ -24,19 +25,15 @@ fn main() {
   set_dump_core_on_panic();
 
   let tls_handler_factory = create_tls_handler_factory();
+  let www_root = Directory::open("./www/").expect("./www/ dir does not exist");
 
   let addr = "0.0.0.0:4343".parse().unwrap();
   let handler_creator = || {
-    let index_handler = app::StaticFileHandler::new("./www/index.html\0", "text/html", None);
-    let big_file = app::StaticFileHandler::new("./www/bigfile.img\0", "application/octet-stream", Some("raspbian.img"));
-    let image = app::StaticFileHandler::new("./www/image.jpg\0", "image/jpeg", None);
-    let hello_world = app::HelloWorld::new();
-    let router = app::Router::new(index_handler, hello_world, big_file, image);
-    let logger = app::Logger::new(router);
+    let dir_handler = app::StaticDirectoryHandler::new(&www_root, "index.html");
+    let logger = app::Logger::new(dir_handler);
     let responder = QueryConnection::new(Handler::new(logger));
     let tls_handler = tls_handler_factory.create_handler(responder);
     return tls_handler;
-    //QueryConnection::new(Handler::new(app::StaticFileHandler::new(), socket))
   };
   let mut server = Server::new(addr, handler_creator).unwrap();
   println!("server version {} running ...", GIT_HASH);
