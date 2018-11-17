@@ -60,54 +60,14 @@ pub struct RelativePath<'d, 'p> {
     filename: Option<&'p str>,
 }
 
-fn is_safe_linux_filename(filename: &str) -> bool {
-  const SLASH: u8 = 0x2Fu8; 
-  const DOT: u8 = 0x2Eu8;
-  const NUL: u8 = 0u8;
-
-  let slice = filename.as_bytes();
-  // empty filename is not supported
-  if slice.is_empty() {
-    return false;
-  }
-  // doesn't contain NUL or /
-  if slice.iter().any(|b| *b == NUL || *b == SLASH) {
-    return false;
-  }
-  // not . or ..
-  slice != &[DOT] || slice != &[DOT, DOT]
-}
-
-fn is_safe_linux_relative_path(path: &str) -> bool {
-  const SLASH: u8 = 0x2Fu8; 
-  const DOT: u8 = 0x2Eu8;
-  const NUL: u8 = 0u8;
-
-  let slice = path.as_bytes();
-  // empty path is not supported by linux
-  // also makes assumptions below easier
-  if slice.is_empty() {
-    return false;
-  }
-  // starts with a /, so absolute path?
-  if slice.first() == Some(&SLASH) {
-    return false;
-  }
-  // any NUL byte that would truncate the string?
-  if slice.iter().any(|b| *b == NUL) {
-    return false;
-  }
-  // any . or .. components in the path?
-  let contains_dot_component = slice.split(|b| *b == SLASH).any(|component| {
-    component == &[DOT] || component == &[DOT, DOT]
-  });
-  return !contains_dot_component;
-}
-
 impl<'d, 'p> RelativePath<'d, 'p> {
   fn new(base_dir: &'d Directory, relative_path: &'p str, filename: Option<&'p str>) -> Result<RelativePath<'d, 'p>> {
-    // TODO: check filename with is_safe_linux_filename
-    if !is_safe_linux_relative_path(relative_path) {
+    if let Some(dir_filename) = filename {
+      if !self::path_checks::is_safe_linux_filename(dir_filename) {
+        return Err(Error::new(ErrorKind::InvalidInput, "relative directory filename contained ., .. or NUL"));
+      }
+    }
+    if !self::path_checks::is_safe_linux_relative_path(relative_path) {
       Err(Error::new(ErrorKind::InvalidInput, "relative path contained ., .. or NUL"))
     } else {
       Ok(RelativePath {
@@ -144,32 +104,98 @@ impl<'d, 'p> Path for RelativePath<'d, 'p> {
   }
 }
 
-#[cfg(test)]
-mod tests {
-  use super::{is_safe_linux_relative_path};
 
-  #[test]
-  fn test_is_safe_linux_relative_path_negative() {
-    assert!(!is_safe_linux_relative_path(""));
-    assert!(!is_safe_linux_relative_path("."));
-    assert!(!is_safe_linux_relative_path(".."));
-    assert!(!is_safe_linux_relative_path("some/."));
-    assert!(!is_safe_linux_relative_path("some/.."));
-    assert!(!is_safe_linux_relative_path("some/./path"));
-    assert!(!is_safe_linux_relative_path("some/../path"));
-    assert!(!is_safe_linux_relative_path("some\0str"));
-    assert!(!is_safe_linux_relative_path("\0some str"));
-    assert!(!is_safe_linux_relative_path("some str\0"));
-    assert!(!is_safe_linux_relative_path("/absolute"));
+mod path_checks {
+
+  const SLASH: u8 = 0x2Fu8; 
+  const DOT: u8 = 0x2Eu8;
+  const NUL: u8 = 0u8;
+
+  pub fn is_safe_linux_filename(filename: &str) -> bool {
+    let slice = filename.as_bytes();
+    // empty filename is not supported
+    if slice.is_empty() {
+      return false;
+    }
+    // doesn't contain NUL or /
+    if slice.iter().any(|b| *b == NUL || *b == SLASH) {
+      return false;
+    }
+    // not . or ..
+    slice != &[DOT] && slice != &[DOT, DOT]
   }
 
-  #[test]
-  fn test_is_safe_linux_relative_path_positive() {
-    assert!(is_safe_linux_relative_path("path"));
-    assert!(is_safe_linux_relative_path("..path"));
-    assert!(is_safe_linux_relative_path("some/..path"));
-    assert!(is_safe_linux_relative_path("some/file.bin"));
-    assert!(is_safe_linux_relative_path("..."));
-    assert!(is_safe_linux_relative_path("some/path"));
+  pub fn is_safe_linux_relative_path(path: &str) -> bool {
+    let slice = path.as_bytes();
+    // empty path is not supported by linux
+    // also makes assumptions below easier
+    if slice.is_empty() {
+      return false;
+    }
+    // starts with a /, so absolute path?
+    if slice.first() == Some(&SLASH) {
+      return false;
+    }
+    // any NUL byte that would truncate the string?
+    if slice.iter().any(|b| *b == NUL) {
+      return false;
+    }
+    // any . or .. components in the path?
+    let contains_dot_component = slice.split(|b| *b == SLASH).any(|component| {
+      component == &[DOT] || component == &[DOT, DOT]
+    });
+    return !contains_dot_component;
+  }
+
+  #[cfg(test)]
+  mod tests {
+    use super::{is_safe_linux_relative_path, is_safe_linux_filename};
+
+    #[test]
+    fn test_is_safe_linux_relative_path_negative() {
+      assert!(!is_safe_linux_relative_path(""));
+      assert!(!is_safe_linux_relative_path("."));
+      assert!(!is_safe_linux_relative_path(".."));
+      assert!(!is_safe_linux_relative_path("some/."));
+      assert!(!is_safe_linux_relative_path("some/.."));
+      assert!(!is_safe_linux_relative_path("some/./path"));
+      assert!(!is_safe_linux_relative_path("some/../path"));
+      assert!(!is_safe_linux_relative_path("some\0str"));
+      assert!(!is_safe_linux_relative_path("\0some str"));
+      assert!(!is_safe_linux_relative_path("some str\0"));
+      assert!(!is_safe_linux_relative_path("/absolute"));
+    }
+
+    #[test]
+    fn test_is_safe_linux_relative_path_positive() {
+      assert!(is_safe_linux_relative_path("path"));
+      assert!(is_safe_linux_relative_path("..path"));
+      assert!(is_safe_linux_relative_path("some/..path"));
+      assert!(is_safe_linux_relative_path("some/file.bin"));
+      assert!(is_safe_linux_relative_path("..."));
+      assert!(is_safe_linux_relative_path("some/path"));
+    }
+
+    #[test]
+    fn test_is_safe_linux_filename_negative() {
+      assert!(!is_safe_linux_filename(""));
+      assert!(!is_safe_linux_filename("."));
+      assert!(!is_safe_linux_filename(".."));
+      assert!(!is_safe_linux_filename("some/"));
+      assert!(!is_safe_linux_filename("/some"));
+      assert!(!is_safe_linux_filename("some/some"));
+      assert!(!is_safe_linux_filename("some\0str"));
+      assert!(!is_safe_linux_filename("\0some str"));
+      assert!(!is_safe_linux_filename("some str\0"));
+    }
+
+    #[test]
+    fn test_is_safe_linux_filename_positive() {
+      assert!(is_safe_linux_filename("path"));
+      assert!(is_safe_linux_filename("..path"));
+      assert!(is_safe_linux_filename("file.bin"));
+      assert!(is_safe_linux_filename("..."));
+    }
   }
 }
+
