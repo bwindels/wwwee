@@ -37,11 +37,10 @@ impl<'a> http::RequestHandler for StaticDirectoryHandler <'a> {
     }?;
     let reader = file::Reader::open(&path, None)?;
     let mut response = res.respond(http::status::OK)?;
-    // TODO: derive mime type from extension
-    response.set_header("Content-Type", "text/html")?;
+    let mime_type = http::mime_type::from_path(request.url(), Some(self.index_file));
+    response.set_header("Content-Type", mime_type)?;
     response.set_header_usize("Content-Length", reader.request_size()?)?;
     response.finish_with_file(reader)
   }
 }
 
-// fn mime_type_from_extension(url: &'a )
