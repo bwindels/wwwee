@@ -3,10 +3,9 @@ use mio;
 use std::io;
 use std::mem;
 use std::cmp;
-use std::path::Path;
+use super::Path;
 use std::ops::Range;
 use std::os::unix::io::{RawFd, AsRawFd};
-use std::os::unix::ffi::OsStrExt;
 use libc;
 use io::{AsyncSource, Token};
 use super::owned_fd::OwnedFd;
@@ -30,28 +29,23 @@ pub struct Reader {
 
 impl Reader {
   pub fn open(
-    path: &Path,
+    path: &dyn Path,
     range: Option<Range<usize>>) -> io::Result<Reader>
   {
     Self::new_with_buffer_size_hint(path, range, BUFFER_MAX_SIZE)
   }
 
   pub fn new_with_buffer_size_hint(
-    path: &Path,
+    path: &dyn Path,
     range: Option<Range<usize>>,
     buffer_size_hint: usize) -> io::Result<Reader>
   {
-    let path_ptr = unsafe { mem::transmute::<*const u8, *const libc::c_char>(path.as_os_str().as_bytes().as_ptr()) };
-    let file_fd = OwnedFd::from_raw_fd(to_result( unsafe {
-      libc::open(
-        path_ptr,
-        libc::O_RDONLY |
-        libc::O_DIRECT |
-        libc::O_NOATIME |
-        libc::O_NONBLOCK
-      )
-    } )? as RawFd);
-
+    let file_fd = path.open(
+      libc::O_RDONLY |
+      libc::O_DIRECT |
+      libc::O_NOATIME |
+      libc::O_NONBLOCK
+    )?;
     let file_stats = stat(file_fd.as_raw_fd())?;
     
     if !is_regular_file(&file_stats) {
