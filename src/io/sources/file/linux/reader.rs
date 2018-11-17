@@ -3,10 +3,9 @@ use mio;
 use std::io;
 use std::mem;
 use std::cmp;
-use std::path::Path;
+use super::Path;
 use std::ops::Range;
 use std::os::unix::io::{RawFd, AsRawFd};
-use std::os::unix::ffi::OsStrExt;
 use libc;
 use io::{AsyncSource, Token};
 use super::owned_fd::OwnedFd;
@@ -30,28 +29,23 @@ pub struct Reader {
 
 impl Reader {
   pub fn open(
-    path: &Path,
+    path: &dyn Path,
     range: Option<Range<usize>>) -> io::Result<Reader>
   {
     Self::new_with_buffer_size_hint(path, range, BUFFER_MAX_SIZE)
   }
 
   pub fn new_with_buffer_size_hint(
-    path: &Path,
+    path: &dyn Path,
     range: Option<Range<usize>>,
     buffer_size_hint: usize) -> io::Result<Reader>
   {
-    let path_ptr = unsafe { mem::transmute::<*const u8, *const libc::c_char>(path.as_os_str().as_bytes().as_ptr()) };
-    let file_fd = OwnedFd::from_raw_fd(to_result( unsafe {
-      libc::open(
-        path_ptr,
-        libc::O_RDONLY |
-        libc::O_DIRECT |
-        libc::O_NOATIME |
-        libc::O_NONBLOCK
-      )
-    } )? as RawFd);
-
+    let file_fd = path.open(
+      libc::O_RDONLY |
+      libc::O_DIRECT |
+      libc::O_NOATIME |
+      libc::O_NONBLOCK
+    )?;
     let file_stats = stat(file_fd.as_raw_fd())?;
     
     if !is_regular_file(&file_stats) {
@@ -245,7 +239,7 @@ mod tests {
   fn test_small_read_all() {
     let path = fixture_path("aio/small.txt\0").unwrap();
     let mut reader = Reader::new_with_buffer_size_hint(
-      path.as_path(),
+      &path,
       None,
       100
     ).unwrap();
@@ -262,7 +256,7 @@ mod tests {
   fn test_small_read_range_too_big() {
     let path = fixture_path("aio/small.txt\0").unwrap();
     let reader = Reader::new_with_buffer_size_hint(
-      path.as_path(),
+      &path,
       Some(0 .. 100),
       100
     ).unwrap();
@@ -282,7 +276,7 @@ mod tests {
     let msg = &SMALL_MSG[range.clone()];
     let path = fixture_path("aio/small.txt\0").unwrap();
     let mut reader = Reader::new_with_buffer_size_hint(
-      path.as_path(),
+      &path,
       Some(range.clone()),
       100
     ).unwrap();
@@ -296,7 +290,7 @@ mod tests {
   fn test_small_eof_all() {
     let path = fixture_path("aio/small.txt\0").unwrap();
     let mut reader = Reader::new_with_buffer_size_hint(
-      path.as_path(),
+      &path,
       None,
       100
     ).unwrap();
@@ -316,7 +310,7 @@ mod tests {
   fn test_u16_inc_read_all() {
     let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
     let reader = Reader::new_with_buffer_size_hint(
-      path.as_path(),
+      &path,
       None,
       100
     ).unwrap();
@@ -335,7 +329,7 @@ mod tests {
   fn test_u16_inc_buffer_same_size_within_request() {
     let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
     let mut reader = Reader::new_with_buffer_size_hint(
-      path.as_path(),
+      &path,
       None,
       100
     ).unwrap();
@@ -355,7 +349,7 @@ mod tests {
   fn test_u16_inc_read_range() {
     let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
     let reader = Reader::new_with_buffer_size_hint(
-      path.as_path(),
+      &path,
       Some(1000 .. 8400),
       100
     ).unwrap();
@@ -377,7 +371,7 @@ mod tests {
   fn test_2blocks_read_all() {
     let path = fixture_path("aio/2-blocks-one.bin\0").unwrap();
     let reader = Reader::new_with_buffer_size_hint(
-      path.as_path(),
+      &path,
       None,
       1
     ).unwrap();
@@ -393,18 +387,31 @@ mod tests {
 
   mod helpers {
     use super::super::Reader;
+    use super::super::super::{Path, to_result, OwnedFd};
     use std::env;
     use std::mem;
-    use std::path::PathBuf;
     use mio;
+    use libc;
     use io::{AsyncSource, Token};
 
-    pub fn fixture_path(fixture_path: &str) -> Result<PathBuf, env::VarError> {
-      let project_dir = env::var("CARGO_MANIFEST_DIR")?;
-      let mut path = PathBuf::from(project_dir);
-      path.push("test_fixtures");
-      path.push(fixture_path);
-      Ok(path)
+    pub struct FixturePath {
+      path: String
+    }
+
+    impl Path for FixturePath {
+      fn open(&self, flags: libc::c_int) -> std::io::Result<OwnedFd> {
+        let raw_fd = to_result( unsafe {
+          libc::open(self.path.as_str().as_ptr() as *const i8, flags)
+        })?;
+        Ok(OwnedFd::from_raw_fd(raw_fd))
+      }
+    }
+
+    pub fn fixture_path(fixture_path: &str) -> Result<FixturePath, env::VarError> {
+      let path = format!("{project_dir}/test_fixtures/{fixture_path}\0",
+        project_dir = env::var("CARGO_MANIFEST_DIR")?,
+        fixture_path = fixture_path);
+      Ok(FixturePath{ path })
     }
 
     pub fn setup_event_loop(reader: &mut Reader) -> (mio::Events, mio::Poll) {

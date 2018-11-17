@@ -1,8 +1,10 @@
 mod helloworld;
 mod file;
+mod dir;
 mod router;
 mod logger;
 pub use self::helloworld::*;
 pub use self::file::*;
+pub use self::dir::*;
 pub use self::router::*;
 pub use self::logger::*;

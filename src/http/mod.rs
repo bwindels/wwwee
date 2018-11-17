@@ -5,6 +5,7 @@ mod error;
 mod url_decode;
 mod str;
 mod url_params;
+pub mod mime_type;
 pub mod status;
 mod response;
 mod response_writer;
