@@ -5,6 +5,9 @@ mod owned_fd;
 mod readrange;
 mod path;
 pub use self::reader::Reader;
+pub use self::path::Directory;
+pub use self::path::Path;
+pub use self::path::RelativePath;
 
 use libc;
 use std::io;
