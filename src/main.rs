@@ -5,6 +5,7 @@ mod app;
 mod buffer;
 mod io;
 mod server;
+mod encoding;
 mod query_connection;
 mod tls;
 #[cfg(test)]
