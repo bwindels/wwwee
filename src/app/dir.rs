@@ -40,7 +40,7 @@ impl<'a> http::RequestHandler for StaticDirectoryHandler <'a> {
   fn read_headers(&mut self, request: &http::Request, res: &http::Responder) -> std::io::Result<Option<http::Response>> {
     // TODO: use content_range header
     let path = self.file_path(request.url())?;
-    let reader = file::Reader::open(&path, None)?;
+    let (reader, _) = file::Reader::open(&path, None)?;
     let mut response = res.respond(http::status::OK)?;
     let mime_type = http::mime_type::from_path(request.url(), Some(self.index_file));
     response.set_header("Content-Type", mime_type)?;
