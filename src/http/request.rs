@@ -8,7 +8,8 @@ pub struct CommonHeaders<'a> {
   pub referer: Option<&'a str>,
   pub content_length: Option<u64>,
   pub content_type: Option<MimeType<'a>>,
-  pub authorization: Option<Authorization<'a>>
+  pub authorization: Option<Authorization<'a>>,
+  pub if_none_match: Option<ETagMatch<'a>>,
 }
 
 impl<'a> CommonHeaders<'a> {
@@ -19,6 +20,7 @@ impl<'a> CommonHeaders<'a> {
       content_length: None,
       content_type: None,
       authorization: None,
+      if_none_match: None,
     }
   }
 
@@ -29,6 +31,7 @@ impl<'a> CommonHeaders<'a> {
       Header::ContentType(t) => self.content_type = Some(t),
       Header::Authorization(a) => self.authorization = Some(a),
       Header::Referer(r) => self.referer = Some(r),
+      Header::IfNoneMatch(etag_match) => self.if_none_match = Some(etag_match),
       _ => ()
     };
   }
