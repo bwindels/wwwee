@@ -14,6 +14,16 @@ use super::{aio, bytes_as_block_count, to_result};
 // ~400Kb, good size determined through testing ext4 and xfs
 const BUFFER_MAX_SIZE : usize = 400_000;
 
+// identifiers of a file
+// that can be used to see
+// if the contents has changed
+pub struct ContentHashFields {
+  pub inode: usize,
+  pub size: usize,
+  pub mtime: i64,
+  pub mtime_nsec: i64,
+}
+
 enum OperationState {
   NotStarted(ReadRangeConfig),
   Ready(ReadRange, Buffer),
@@ -30,7 +40,7 @@ pub struct Reader {
 impl Reader {
   pub fn open(
     path: &dyn Path,
-    range: Option<Range<usize>>) -> io::Result<Reader>
+    range: Option<Range<usize>>) -> io::Result<(Reader, ContentHashFields)>
   {
     Self::new_with_buffer_size_hint(path, range, BUFFER_MAX_SIZE)
   }
@@ -38,7 +48,7 @@ impl Reader {
   pub fn new_with_buffer_size_hint(
     path: &dyn Path,
     range: Option<Range<usize>>,
-    buffer_size_hint: usize) -> io::Result<Reader>
+    buffer_size_hint: usize) -> io::Result<(Reader, ContentHashFields)>
   {
     let file_fd = path.open(
       libc::O_RDONLY |
@@ -64,12 +74,19 @@ impl Reader {
       libc::eventfd(0, libc::EFD_NONBLOCK)
     } )? as RawFd);
 
-    Ok(Reader {
+    let file_content_id = ContentHashFields {
+      size:       file_stats.st_size as usize,
+      inode:      file_stats.st_ino as usize,
+      mtime:      file_stats.st_mtime,
+      mtime_nsec: file_stats.st_mtime_nsec
+    };
+
+    Ok((Reader {
       state: Some(OperationState::NotStarted(range_cfg)),
       io_ctx,
       file_fd,
       event_fd
-    })
+    }, file_content_id))
   }
 
   /// returns: bool: whether the end hasn't been
@@ -238,7 +255,7 @@ mod tests {
   #[test]
   fn test_small_read_all() {
     let path = fixture_path("aio/small.txt\0").unwrap();
-    let mut reader = Reader::new_with_buffer_size_hint(
+    let (mut reader, _) = Reader::new_with_buffer_size_hint(
       &path,
       None,
       100
@@ -255,7 +272,7 @@ mod tests {
   #[test]
   fn test_small_read_range_too_big() {
     let path = fixture_path("aio/small.txt\0").unwrap();
-    let reader = Reader::new_with_buffer_size_hint(
+    let (reader, _) = Reader::new_with_buffer_size_hint(
       &path,
       Some(0 .. 100),
       100
@@ -275,7 +292,7 @@ mod tests {
     let range = 4 .. 11;
     let msg = &SMALL_MSG[range.clone()];
     let path = fixture_path("aio/small.txt\0").unwrap();
-    let mut reader = Reader::new_with_buffer_size_hint(
+    let (mut reader, _) = Reader::new_with_buffer_size_hint(
       &path,
       Some(range.clone()),
       100
@@ -289,7 +306,7 @@ mod tests {
   #[test]
   fn test_small_eof_all() {
     let path = fixture_path("aio/small.txt\0").unwrap();
-    let mut reader = Reader::new_with_buffer_size_hint(
+    let (mut reader, _) = Reader::new_with_buffer_size_hint(
       &path,
       None,
       100
@@ -309,7 +326,7 @@ mod tests {
   #[test]
   fn test_u16_inc_read_all() {
     let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
-    let reader = Reader::new_with_buffer_size_hint(
+    let (reader, _) = Reader::new_with_buffer_size_hint(
       &path,
       None,
       100
@@ -328,7 +345,7 @@ mod tests {
   #[test]
   fn test_u16_inc_buffer_same_size_within_request() {
     let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
-    let mut reader = Reader::new_with_buffer_size_hint(
+    let (mut reader, _) = Reader::new_with_buffer_size_hint(
       &path,
       None,
       100
@@ -348,7 +365,7 @@ mod tests {
   #[test]
   fn test_u16_inc_read_range() {
     let path = fixture_path("aio/u16-inc-small.bin\0").unwrap();
-    let reader = Reader::new_with_buffer_size_hint(
+    let (reader, _) = Reader::new_with_buffer_size_hint(
       &path,
       Some(1000 .. 8400),
       100
@@ -370,7 +387,7 @@ mod tests {
   #[test]
   fn test_2blocks_read_all() {
     let path = fixture_path("aio/2-blocks-one.bin\0").unwrap();
-    let reader = Reader::new_with_buffer_size_hint(
+    let (reader, _) = Reader::new_with_buffer_size_hint(
       &path,
       None,
       1
