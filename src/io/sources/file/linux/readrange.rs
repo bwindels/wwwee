@@ -33,6 +33,10 @@ impl ReadRangeConfig {
     }
   }
 
+  pub fn buffer_size(&self) -> usize {
+    self.block_size as usize * self.buffer_block_capacity as usize
+  } 
+
   #[cfg(test)]
   pub fn block_size(&self) -> usize {
     self.block_size as usize

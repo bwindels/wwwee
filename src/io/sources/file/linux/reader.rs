@@ -15,7 +15,7 @@ use super::{aio, bytes_as_block_count, to_result};
 const BUFFER_MAX_SIZE : usize = 400_000;
 
 enum OperationState {
-  NotStarted(ReadRangeConfig, Buffer),
+  NotStarted(ReadRangeConfig),
   Ready(ReadRange, Buffer),
   Reading(ReadRange, aio::Operation)
 }
@@ -55,7 +55,6 @@ impl Reader {
     let range = normalize_range(&file_stats, range);
     let buffer_block_capacity = buffer_block_size(&file_stats, &range, buffer_size_hint);
     let block_size = file_stats.st_blksize as usize;
-    let buffer = Buffer::page_sized_aligned(buffer_block_capacity * block_size);
     let range_cfg = ReadRangeConfig::new(
       range, block_size as u16,
       buffer_block_capacity as u16);
@@ -66,7 +65,7 @@ impl Reader {
     } )? as RawFd);
 
     Ok(Reader {
-      state: Some(OperationState::NotStarted(range_cfg, buffer)),
+      state: Some(OperationState::NotStarted(range_cfg)),
       io_ctx,
       file_fd,
       event_fd
@@ -78,7 +77,8 @@ impl Reader {
   pub fn try_queue_read(&mut self) -> io::Result<bool> {
     let state = self.state.take();
     let new_state = match state {
-      Some(OperationState::NotStarted(range_cfg, buffer)) => {
+      Some(OperationState::NotStarted(range_cfg)) => {
+        let buffer = Buffer::page_sized_aligned(range_cfg.buffer_size());
         range_cfg.first_range().map(|r| {
           let op = self.queue_read_operation(r.operation_range(), buffer)?;
           Ok(OperationState::Reading(r, op))
@@ -106,7 +106,7 @@ impl Reader {
       Some(OperationState::Reading(_, _)) => {
         Err(io::Error::new(io::ErrorKind::WouldBlock, "read has not finished yet"))
       },
-      Some(OperationState::NotStarted(_, _)) => {
+      Some(OperationState::NotStarted(_)) => {
         Err(io::Error::new(io::ErrorKind::Other, "no read was queued")) 
       }
       None => Err(io::Error::new(io::ErrorKind::Other, "previous error or eof"))
@@ -122,7 +122,7 @@ impl Reader {
         let r = range.total_range();
         Ok(r.end - r.start)
       },
-      Some(OperationState::NotStarted(ref range_cfg, _)) => {
+      Some(OperationState::NotStarted(ref range_cfg)) => {
         let r = range_cfg.total_range();
         Ok(r.end - r.start)
       }
@@ -133,7 +133,7 @@ impl Reader {
   #[cfg(test)]
   pub fn block_size(&self) -> Option<usize> {
     match self.state {
-      Some(OperationState::NotStarted(ref range_cfg, _)) => {
+      Some(OperationState::NotStarted(ref range_cfg)) => {
         Some(range_cfg.block_size())
       }
       _ => None
