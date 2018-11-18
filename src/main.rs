@@ -5,9 +5,11 @@ mod app;
 mod buffer;
 mod io;
 mod server;
+mod encoding;
 mod query_connection;
 mod tls;
 #[cfg(test)]
+#[macro_use]
 mod test_helpers;
 
 extern crate mio;
@@ -30,7 +32,10 @@ fn main() {
   let addr = "0.0.0.0:4343".parse().unwrap();
   let handler_creator = || {
     let dir_handler = app::StaticDirectoryHandler::new(&www_root, "index.html");
-    let logger = app::Logger::new(dir_handler);
+    let auth_handler = app::BasicAuthHandler::new(dir_handler, "Holiday Pictures", | credentials | {
+      credentials.user == "foo" && credentials.password == "bar"
+    });
+    let logger = app::Logger::new(auth_handler);
     let responder = QueryConnection::new(Handler::new(logger));
     let tls_handler = tls_handler_factory.create_handler(responder);
     return tls_handler;
