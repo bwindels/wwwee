@@ -33,11 +33,12 @@ See also [the more detailed TODO list](doc/TODO.md).
  - buffered responses
  - async file responses
  - TLS support using [BearSSL](https://bearssl.org/).
-
+ - Basic auth
+ - Serving static file from a root directory.
+ 
 ### In progress
 
  - [Zero-allocation JSON parsing](https://github.com/bwindels/json-parser-noalloc-rs)
- - [In-place base64 decoder](https://gist.github.com/bwindels/777a1b5b13cd54bcd67dca3c925ca7bb)
 
 ### Planned
 
