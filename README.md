@@ -49,10 +49,10 @@ See also [the more detailed TODO list](doc/TODO.md).
  - a timer, so long-polling requests can timeout
  - let handlers send responses on other open requests,
    for message broadcasting on long-polling requests.
+ - HTTP2 support
 
 ### Further away plans
 
- - HTTP2 support
  - UPnP support for auto-setup port-forwarding.
  - Find solution for when Hairpin-NAT is unavailable.
  - Install apps from central repository ("app store")
