@@ -24,7 +24,7 @@ impl<'a> http::RequestHandler for StaticFileHandler <'a> {
     // TODO: deal with directory paths
     // print!("{:x?}", request.url());
     let path = self.root_dir.sub_path(request.url().get(1..).unwrap())?;
-    let reader = file::Reader::open(&path, None)?;
+    let (reader, _) = file::Reader::open(&path, None)?;
     let mut response = res.respond(http::status::OK)?;
     response.set_header("Content-Type", "text/html")?;
     response.set_header_usize("Content-Length", reader.request_size()?)?;

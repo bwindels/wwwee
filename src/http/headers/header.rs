@@ -1,4 +1,4 @@
-use super::{MimeType, Authorization, ContentRange, RawHeader};
+use super::{MimeType, Authorization, ContentRange, RawHeader, ETagMatch};
 use http::{RequestResult, RequestError};
 use http::str::slice_to_str;
 use std::str::FromStr;
@@ -10,7 +10,8 @@ pub enum Header<'a> {
   Authorization(Authorization<'a>),
   Referer(&'a str),
   Range(ContentRange<'a>),
-  Other(RawHeader<'a>)
+  Other(RawHeader<'a>),
+  IfNoneMatch(ETagMatch<'a>),
 }
 
 fn parse_u64(num_str: &str) -> RequestResult<u64> {
@@ -26,6 +27,7 @@ impl<'a> Header<'a> {
       "Content-Type" => Header::ContentType(MimeType::parse(slice_to_str(raw_header.value)?)?),
       "Content-Length" => Header::ContentLength(parse_u64(slice_to_str(raw_header.value)?)?),
       "Range" => Header::Range(ContentRange::parse(slice_to_str(raw_header.value)?)?),
+      "If-None-Match" => Header::IfNoneMatch(ETagMatch::parse(raw_header.value)?),
       _ => Header::Other(raw_header)
     };
     Ok(header)

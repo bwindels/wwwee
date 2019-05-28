@@ -40,7 +40,6 @@ pub fn try_split_two_mut<'a>(buffer: &'a mut [u8], operator: &[u8]) -> (&'a mut 
   }
 }
 
-
 #[cfg(test)]
 mod tests {
   use test_helpers::copy_str;
