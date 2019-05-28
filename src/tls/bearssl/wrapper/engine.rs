@@ -1,5 +1,6 @@
 use super::ffi::*;
 use std;
+use std::slice;
 use std::os::raw::{c_int, c_void};
 use super::Result;
 
@@ -8,12 +9,12 @@ pub type Context = br_ssl_engine_context;
 impl Context {
   pub fn recvrec_buf<'a>(&'a self) -> Option<&'a mut [u8]> {
     let mut size = 0usize;
-    let ptr = unsafe {
-      br_ssl_engine_recvrec_buf(
-        self as *const Context,
-        &mut size as *mut usize)
-    };
-    ptr_to_slice(ptr, size)
+    unsafe {
+      let ptr = br_ssl_engine_recvrec_buf(
+          self as *const Context,
+          &mut size as *mut usize);
+      ptr_to_slice(ptr, size)
+    }
   }
 
   pub fn recvrec_ack(&mut self, len: usize) -> Result<()> {
@@ -25,12 +26,12 @@ impl Context {
   //TODO: self should be mut here, returning a mutable ref
   pub fn sendrec_buf<'a>(&'a self) -> Option<&'a mut [u8]> {
     let mut size = 0usize;
-    let ptr = unsafe {
-      br_ssl_engine_sendrec_buf(
+    unsafe {
+      let ptr = br_ssl_engine_sendrec_buf(
         self as *const Context,
-        &mut size as *mut usize)
-    };
-    ptr_to_slice(ptr, size)
+        &mut size as *mut usize);
+      ptr_to_slice(ptr, size)
+    }
   }
 
   pub fn sendrec_ack(&mut self, len: usize) -> Result<()> {
@@ -42,12 +43,12 @@ impl Context {
 
   pub fn recvapp_buf<'a>(&'a self) -> Option<&'a mut [u8]> {
     let mut size = 0usize;
-    let ptr = unsafe {
-      br_ssl_engine_recvapp_buf(
+    unsafe {
+      let ptr = br_ssl_engine_recvapp_buf(
         self as *const Context,
-        &mut size as *mut usize)
-    };
-    ptr_to_slice(ptr, size)
+        &mut size as *mut usize);
+      ptr_to_slice(ptr, size)
+    }
   }
 
   pub fn recvapp_ack(&mut self, len: usize) -> Result<()> {
@@ -59,12 +60,12 @@ impl Context {
 
   pub fn sendapp_buf<'a>(&'a self) -> Option<&'a mut [u8]> {
     let mut size = 0usize;
-    let ptr = unsafe {
-      br_ssl_engine_sendapp_buf(
+    unsafe {
+      let ptr = br_ssl_engine_sendapp_buf(
         self as *const Context,
-        &mut size as *mut usize)
-    };
-    ptr_to_slice(ptr, size)
+        &mut size as *mut usize);
+      ptr_to_slice(ptr, size)
+    }
   }
 
   pub fn sendapp_ack(&mut self, len: usize) -> Result<()> {
@@ -117,6 +118,17 @@ impl Context {
     }
     else {
       Err(super::Error::from_primitive(self.err as u32))
+    }
+  }
+
+  pub fn get_server_name<'a>(&'a self) -> Option<&'a [u8]> {
+    let ptr = &self.server_name as *const i8;
+    let ptr = if ptr.is_null() { None } else { Some(ptr) };
+    unsafe {
+      ptr.map(|ptr| {
+        let len = libc::strnlen(ptr, 256);
+        slice::from_raw_parts(ptr as *const u8, len)
+      })
     }
   }
 }
@@ -180,19 +192,7 @@ pub enum StateFlag {
   RecvApp = BR_SSL_RECVAPP as isize
 }
 
-fn ptr_to_slice<'a>(ptr: *mut std::os::raw::c_uchar, len: usize) -> Option<&'a mut [u8]> {
-  not_null_mut(ptr).map(|ptr| {
-    unsafe {
-      std::slice::from_raw_parts_mut(ptr as *mut u8, len)
-    }
-  })
+unsafe fn ptr_to_slice<'a>(ptr: *mut std::os::raw::c_uchar, len: usize) -> Option<&'a mut [u8]> {
+  ptr.as_mut().map(|ptr| slice::from_raw_parts_mut(ptr as *mut u8, len))
 }
 
-fn not_null_mut<T>(ptr: *mut T) -> Option<*mut T> {
-  if ptr.is_null() {
-    None
-  }
-  else {
-    Some(ptr)
-  }
-}
