@@ -29,7 +29,7 @@ impl<'a> Context<'a> {
     let mut server_context = match key {
       &secret::Key::Rsa(ref rsa_key) => {
         //this is probably not safe as key could be moved later on
-        server::Context::init_full_rsa(certificate_chain, rsa_key)?
+        server::Context::init_full_rsa(certificate_chain, Some(rsa_key))?
       },
       _ => unimplemented!("only RSA keys are implemented for now")
     };
